@@ -1,0 +1,32 @@
+# Claude Code
+.claude/
+.claude.json
+.claude.json.backup
+CLAUDE.md
+CLAUDE.local.md
+.mcp.json
+
+# Docs
+docs/
+
+# Data — PAN 2025 dataset is too large for git (~2.4 GB).
+# Keep only the raw-data README; ignore all actual documents/labels.
+data/**
+!data/
+!data/raw/
+!data/raw/README.md
+
+# Generated outputs (label dumps, EDA/eval CSVs — regenerable from scripts)
+outputs/
+
+# OS / editor cruft
+desktop.ini
+Thumbs.db
+.DS_Store
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.ipynb_checkpoints/
