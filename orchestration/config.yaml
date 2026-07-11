@@ -1,0 +1,115 @@
+# ==============================================================================
+# TEXT MINING 2026 — PLAGIARISM DETECTION PROJECT CONFIGURATION
+# Pipeline Configuration for PAN 2025 Generated Plagiarism Detection
+# Task: A0-1 | Assignee: Khoa
+# ==============================================================================
+
+# Cấu hình chung cho toàn bộ Project Pipeline
+pipeline:
+  name: "pan25_plagiarism_detection_pipeline"
+  version: "1.0.0"
+  seed: 42
+  verbose: true
+
+# ------------------------------------------------------------------------------
+# PHASE 0: Quản lý Đường dẫn Dữ liệu (Setup & Data Path Management)
+# ------------------------------------------------------------------------------
+data:
+  root_dir: "data"
+  raw_dir: "data/raw"
+  processed_dir: "data/processed"
+  
+  # Cấu hình các tập dữ liệu canonical theo PAN 2025
+  splits:
+    spot_check:
+      docs_dir: "data/raw/00_spot_check/00_spot_check"
+      truth_dir: "data/raw/00_spot_check/00_spot_check_truth"
+    train:
+      docs_dir: "data/raw/pan25-generated-plagiarism-detection-train/01_train/01_train"
+      truth_dir: "data/raw/pan25-generated-plagiarism-detection-train/01_train/01_train_truth"
+    validation:
+      docs_dir: "data/raw/pan25-generated-plagiarism-detection-validation/02_validation/02_validation"
+      truth_dir: "data/raw/pan25-generated-plagiarism-detection-validation/02_validation/02_validation_truth"
+  
+  # Định dạng xuất dữ liệu từ khâu Parse nhãn (Task A0-3)
+  exports:
+    jsonl_output: "outputs/labels.jsonl"
+    csv_output: "outputs/spans.csv"
+    eda_summary: "outputs/eda_summary.csv"
+
+# ------------------------------------------------------------------------------
+# PHASE 1: Cấu hình Tối ưu Truy hồi Tài liệu Nguồn (Source Retrieval Config)
+# ------------------------------------------------------------------------------
+source_retrieval:
+  # Embedding model phục vụ trích xuất vector tài liệu (SPECTER / SentenceTransformers)
+  embedding_model: "sentence-transformers/allenai-specter"
+  device: "cuda" # Cấu hình chạy trên GPU (Kaggle/Local) hoặc 'cpu'
+  batch_size: 64
+  
+  # Cấu hình Lưu trữ và Tối ưu chỉ mục Tương đồng FAISS
+  faiss:
+    index_type: "IndexFlatIP" # Inner Product phục vụ Cosine Similarity cho Normalized Vector
+    index_path: "outputs/retrieval/faiss_source.index"
+    top_k: 5 # Số lượng tài liệu nguồn ứng viên (S) trích xuất cho mỗi Suspicious doc (P)
+  
+  # Tham số Đánh giá hiệu năng Retrieval
+  evaluation:
+    metrics: ["recall_at_k"]
+    output_csv: "outputs/retrieval_eval.csv"
+
+# ------------------------------------------------------------------------------
+# PHASE 2: Cấu hình Căn chỉnh Văn bản (Text Alignment Config - Core Task)
+# ------------------------------------------------------------------------------
+text_alignment:
+  # Thuật toán chính: Seed-and-Extend hoặc Dynamic Programming
+  algorithm: "seed_and_extend"
+  
+  # Trọng số tính toán alignment_score (Eq.1) kết hợp đa thành phần
+  weights:
+    specter_sim: 0.5
+    tfidf_sim: 0.3
+    section_title_sim: 0.2
+    
+  # Cấu hình gộp các đoạn chồng lấn (Span Merging) và Lọc ngưỡng theo mức độ đạo văn
+  span_extraction:
+    min_span_character_length: 50 # Bỏ qua các đoạn quá ngắn tránh nhiễu
+    merge_threshold_chars: 100    # Khoảng cách ký tự tối đa để gộp 2 đoạn sát nhau
+    
+  # Classifier phân biệt Paraphrase Plagiarism vs Altered (LLM tự sinh không nguồn)
+  classifier:
+    model_name: "paraphrase-classifier-baseline"
+    thresholds:
+      low: 0.45   # Ngưỡng bắt đạo văn mức thấp
+      medium: 0.65  # Ngưỡng bắt đạo văn mức trung bình
+      high: 0.85  # Ngưỡng bắt đạo văn mức cao
+
+# ------------------------------------------------------------------------------
+# PHASE 3: Cấu hình Đánh giá & Ghi điểm (Scoring & Metrics Config)
+# ------------------------------------------------------------------------------
+scoring:
+  # Cấu hình tính toán mức độ ký tự (Character-level Metrics)
+  character_level:
+    granularity_beta: 1.0
+  
+  # Đường dẫn xuất báo cáo trực quan (Highlight Report)
+  visualization:
+    enabled: true
+    report_dir: "outputs/reports/visualizations"
+
+# ------------------------------------------------------------------------------
+# PHASE 4: Tối ưu tích hợp và Truyền dòng (Integration & Streaming Optimization)
+# ------------------------------------------------------------------------------
+integration:
+  # Chiến lược tối ưu bộ nhớ chống tràn RAM khi xử lý quy mô lớn (~100k tài liệu)
+  execution_mode: "streaming" # 'batch' hoặc 'streaming'
+  chunk_size: 1000 # Số lượng tài liệu xử lý mỗi luồng stream
+  
+  # Quản lý giới hạn hạn ngạch gọi LLM API (nếu áp dụng ở khâu Paraphrase Classifier)
+  api_quota:
+    max_requests_per_minute: 60
+    retry_on_error: true
+    max_retries: 3
+
+  # Lưu trữ logs thực thi pipeline
+  logging:
+    log_file: "outputs/logs/pipeline_execution.log"
