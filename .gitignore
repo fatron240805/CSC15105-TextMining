@@ -19,6 +19,13 @@ data/**
 # Generated outputs (label dumps, EDA/eval CSVs — regenerable from scripts)
 outputs/
 
+# Kaggle staged data — assembled by scripts/kaggle_stage.py (labels ~480MB, corpus ~2.4GB).
+# Track only the dataset-metadata.json; ignore the staged .csv/.txt payload.
+kaggle_datasets/**
+!kaggle_datasets/
+!kaggle_datasets/**/
+!kaggle_datasets/**/dataset-metadata.json
+
 # OS / editor cruft
 *.ini
 desktop.ini
@@ -31,3 +38,6 @@ __pycache__/
 .venv/
 venv/
 .ipynb_checkpoints/
+
+# Editor
+.vscode/

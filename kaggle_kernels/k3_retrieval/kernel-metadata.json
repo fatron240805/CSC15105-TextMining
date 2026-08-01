@@ -1,0 +1,17 @@
+{
+  "id": "whaleeatu/k3-retrieval-eval",
+  "title": "K3 retrieval eval",
+  "code_file": "k3_retrieval.py",
+  "language": "python",
+  "kernel_type": "script",
+  "is_private": true,
+  "enable_gpu": false,
+  "enable_internet": false,
+  "dataset_sources": [
+    "whaleeatu/pan25-embeddings",
+    "whaleeatu/pan25-labels",
+    "whaleeatu/pan25-corpus-val"
+  ],
+  "competition_sources": [],
+  "kernel_sources": []
+}

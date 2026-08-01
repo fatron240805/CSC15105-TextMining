@@ -18,7 +18,7 @@ data:
   root_dir: "data"
   raw_dir: "data/raw"
   processed_dir: "data/processed"
-  
+
   # Cấu hình các tập dữ liệu canonical theo PAN 2025
   splits:
     spot_check:
@@ -30,7 +30,7 @@ data:
     validation:
       docs_dir: "data/raw/pan25-generated-plagiarism-detection-validation/02_validation/02_validation"
       truth_dir: "data/raw/pan25-generated-plagiarism-detection-validation/02_validation/02_validation_truth"
-  
+
   # Định dạng xuất dữ liệu từ khâu Parse nhãn (Task A0-3)
   exports:
     jsonl_output: "outputs/labels.jsonl"
@@ -45,13 +45,13 @@ source_retrieval:
   embedding_model: "sentence-transformers/allenai-specter"
   device: "cuda" # Cấu hình chạy trên GPU (Kaggle/Local) hoặc 'cpu'
   batch_size: 64
-  
+
   # Cấu hình Lưu trữ và Tối ưu chỉ mục Tương đồng FAISS
   faiss:
     index_type: "IndexFlatIP" # Inner Product phục vụ Cosine Similarity cho Normalized Vector
     index_path: "outputs/retrieval/faiss_source.index"
     top_k: 5 # Số lượng tài liệu nguồn ứng viên (S) trích xuất cho mỗi Suspicious doc (P)
-  
+
   # Tham số Đánh giá hiệu năng Retrieval
   evaluation:
     metrics: ["recall_at_k"]
@@ -63,18 +63,18 @@ source_retrieval:
 text_alignment:
   # Thuật toán chính: Seed-and-Extend hoặc Dynamic Programming
   algorithm: "seed_and_extend"
-  
+
   # Trọng số tính toán alignment_score (Eq.1) kết hợp đa thành phần
   weights:
     specter_sim: 0.5
     tfidf_sim: 0.3
     section_title_sim: 0.2
-    
+
   # Cấu hình gộp các đoạn chồng lấn (Span Merging) và Lọc ngưỡng theo mức độ đạo văn
   span_extraction:
     min_span_character_length: 50 # Bỏ qua các đoạn quá ngắn tránh nhiễu
     merge_threshold_chars: 100    # Khoảng cách ký tự tối đa để gộp 2 đoạn sát nhau
-    
+
   # Classifier phân biệt Paraphrase Plagiarism vs Altered (LLM tự sinh không nguồn)
   classifier:
     model_name: "paraphrase-classifier-baseline"
@@ -90,7 +90,7 @@ scoring:
   # Cấu hình tính toán mức độ ký tự (Character-level Metrics)
   character_level:
     granularity_beta: 1.0
-  
+
   # Đường dẫn xuất báo cáo trực quan (Highlight Report)
   visualization:
     enabled: true
@@ -103,7 +103,7 @@ integration:
   # Chiến lược tối ưu bộ nhớ chống tràn RAM khi xử lý quy mô lớn (~100k tài liệu)
   execution_mode: "streaming" # 'batch' hoặc 'streaming'
   chunk_size: 1000 # Số lượng tài liệu xử lý mỗi luồng stream
-  
+
   # Quản lý giới hạn hạn ngạch gọi LLM API (nếu áp dụng ở khâu Paraphrase Classifier)
   api_quota:
     max_requests_per_minute: 60
@@ -113,3 +113,21 @@ integration:
   # Lưu trữ logs thực thi pipeline
   logging:
     log_file: "outputs/logs/pipeline_execution.log"
+
+# ------------------------------------------------------------------------------
+# BỔ SUNG (Phase 1 thực nghiệm) — số liệu đã đo & cấu hình Kaggle orchestration.
+# Kernel/scripts hiện đọc qua ENV/hằng số; phần này để tham chiếu + sanity-check.
+# ------------------------------------------------------------------------------
+dataset_facts:
+  train: {pairs: 62160, susp: 60759, src: 60592, spans: 2730100, plagiarism: 1877750, altered: 852350}
+  val:   {pairs: 7976,  susp: 7950,  src: 7949,  spans: 348629,  plagiarism: 238242,  altered: 110387}
+  spot:  {pairs: 50,    susp: 50,    src: 50,    spans: 1639}
+  offset_semantics: "character-level, UTF-8, LF newlines, read with newline=''"
+
+kaggle:                              # account đang chạy (verified GPU/Internet)
+  username:   "whaleeatu"
+  machine_shape: "NvidiaTeslaT4"     # P100 KHÔNG chạy được torch 2.10 (xem KAGGLE_RUNBOOK.md)
+  datasets:
+    corpus_val: "whaleeatu/pan25-corpus-val"
+    labels:     "whaleeatu/pan25-labels"
+    embeddings: "whaleeatu/pan25-embeddings"
