@@ -1,0 +1,19 @@
+{
+  "method": "baseline (whole-doc)",
+  "kind": "baseline",
+  "split": "val",
+  "subset": 150,
+  "topk": null,
+  "eval_set_id": "f3c526f7d87f",
+  "params": {},
+  "metrics": {
+    "plagdet": 0.6693,
+    "precision": 0.503,
+    "recall": 1.0,
+    "f1": 0.6693,
+    "granularity": 1.0
+  },
+  "runtime_sec": null,
+  "timestamp": "2026-08-07T09:20:22",
+  "notes": "gán cả tài liệu là đạo văn"
+}

@@ -14,6 +14,7 @@ import numpy as np
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from scripts.alignment.align_tfisf import align_pair
 from evaluation.plagdet import Span, plagdet_score
+from evaluation.eval_store import eval_set_id, save_result
 
 VAL = r"C:/github/PAN2025/pan25-generated-plagiarism-detection-validation/02_validation/02_validation"
 PATHS = {
@@ -36,6 +37,9 @@ def main():
     ap.add_argument("--topk", type=int, default=1)   # top-1 tốt nhất: distractor (top-k>1) hại precision
     ap.add_argument("--th", type=float, default=0.30)     # seed th1=th2
     ap.add_argument("--th3", type=float, default=0.50)
+    ap.add_argument("--method", default="tfidf+tfisf", help="tên phương pháp (cho leaderboard)")
+    ap.add_argument("--notes", default="", help="ghi chú cấu hình")
+    ap.add_argument("--no-leaderboard", action="store_true", help="bỏ qua dựng lại HTML cuối run")
     args = ap.parse_args()
     sys.stdout.reconfigure(encoding="utf-8")
 
@@ -101,6 +105,27 @@ def main():
                        ("n_susp", len(subset)), ("topk", k)]:
             w.writerow([kk, round(vv, 4) if isinstance(vv, float) else vv])
     print("-> outputs/pipeline_eval.csv")
+
+    # ---- Lưu vào kho đánh giá (để leaderboard so sánh nhiều phương pháp) ----
+    esid = eval_set_id(subset)
+    runtime = time.time() - t0
+    save_result(args.method, {"plagdet": r.plagdet, "precision": r.precision, "recall": r.recall,
+                              "f1": r.f1, "granularity": r.granularity},
+                kind="method", split=args.split, subset=len(subset), topk=k,
+                params={"th": args.th, "th3": args.th3}, eval_set=esid,
+                runtime_sec=runtime, notes=args.notes)
+    save_result("baseline (whole-doc)", {"plagdet": b.plagdet, "precision": b.precision,
+                                         "recall": b.recall, "f1": b.f1, "granularity": b.granularity},
+                kind="baseline", split=args.split, subset=len(subset), topk=None,
+                eval_set=esid, notes="gán cả tài liệu là đạo văn")
+    print(f"-> evaluation/results/ (eval_set_id={esid})")
+
+    if not args.no_leaderboard:
+        try:
+            from evaluation.build_leaderboard import build
+            print("->", build())
+        except Exception as e:                       # dựng HTML không được cũng không chặn eval
+            print(f"[leaderboard] bỏ qua: {e}")
 
 
 if __name__ == "__main__":

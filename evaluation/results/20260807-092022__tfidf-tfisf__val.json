@@ -1,0 +1,22 @@
+{
+  "method": "tfidf+tfisf",
+  "kind": "method",
+  "split": "val",
+  "subset": 150,
+  "topk": 3,
+  "eval_set_id": "f3c526f7d87f",
+  "params": {
+    "th": 0.3,
+    "th3": 0.5
+  },
+  "metrics": {
+    "plagdet": 0.6107,
+    "precision": 0.5968,
+    "recall": 0.7068,
+    "f1": 0.6471,
+    "granularity": 1.0843
+  },
+  "runtime_sec": 154.8,
+  "timestamp": "2026-08-07T09:20:22",
+  "notes": "retrieval top-3, align tf-isf"
+}

@@ -1,0 +1,15 @@
+{
+  "method": "aligner neural (bge-small)",
+  "kind": "method",
+  "split": "spot",
+  "subset": 50,
+  "topk": null,
+  "eval_set_id": "015b15b21248",
+  "params": {},
+  "metrics": {
+    "plagdet": 0.681
+  },
+  "runtime_sec": null,
+  "timestamp": "2026-08-07T09:17:13",
+  "notes": "cosine câu không phân biệt văn bản cùng chủ đề + thiếu ràng buộc locality -> bỏ"
+}

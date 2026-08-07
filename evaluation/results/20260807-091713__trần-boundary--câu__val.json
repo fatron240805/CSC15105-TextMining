@@ -1,0 +1,15 @@
+{
+  "method": "trần boundary (câu)",
+  "kind": "ceiling",
+  "split": "val",
+  "subset": null,
+  "topk": null,
+  "eval_set_id": null,
+  "params": {},
+  "metrics": {
+    "plagdet": 0.858
+  },
+  "runtime_sec": null,
+  "timestamp": "2026-08-07T09:17:13",
+  "notes": "giới hạn trên khi span khớp biên câu (phân tích boundary)"
+}
