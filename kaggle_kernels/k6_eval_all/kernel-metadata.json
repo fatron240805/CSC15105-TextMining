@@ -1,0 +1,17 @@
+{
+  "id": "whaleeatu/k6-eval-all",
+  "title": "K6 eval all",
+  "code_file": "k6_eval_all.py",
+  "language": "python",
+  "kernel_type": "script",
+  "is_private": true,
+  "enable_gpu": true,
+  "machine_shape": "NvidiaTeslaT4",
+  "enable_internet": true,
+  "dataset_sources": [
+    "whaleeatu/pan25-corpus-val",
+    "whaleeatu/pan25-labels"
+  ],
+  "competition_sources": [],
+  "kernel_sources": []
+}
