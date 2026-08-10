@@ -1,0 +1,17 @@
+{
+  "id": "whaleeatu/k5-align-khoi",
+  "title": "K5 align khoi",
+  "code_file": "k5_align_khoi.py",
+  "language": "python",
+  "kernel_type": "script",
+  "is_private": true,
+  "enable_gpu": true,
+  "machine_shape": "NvidiaTeslaT4",
+  "enable_internet": true,
+  "dataset_sources": [
+    "whaleeatu/pan25-corpus-val",
+    "whaleeatu/pan25-labels"
+  ],
+  "competition_sources": [],
+  "kernel_sources": []
+}

@@ -37,11 +37,43 @@ def main():
     ap.add_argument("--topk", type=int, default=1)   # top-1 tốt nhất: distractor (top-k>1) hại precision
     ap.add_argument("--th", type=float, default=0.30)     # seed th1=th2
     ap.add_argument("--th3", type=float, default=0.50)
-    ap.add_argument("--method", default="tfidf+tfisf", help="tên phương pháp (cho leaderboard)")
+    ap.add_argument("--aligner", default="tfisf", choices=["tfisf", "khoi"],
+                    help="tfisf = lexical (mình); khoi = E5 neural + source-path (Khôi)")
+    ap.add_argument("--khoi-threshold", type=float, default=0.86)   # ngưỡng cosine E5 của Khôi
+    ap.add_argument("--method", default="", help="tên phương pháp (cho leaderboard)")
     ap.add_argument("--notes", default="", help="ghi chú cấu hình")
     ap.add_argument("--no-leaderboard", action="store_true", help="bỏ qua dựng lại HTML cuối run")
     args = ap.parse_args()
     sys.stdout.reconfigure(encoding="utf-8")
+    if not args.method:
+        args.method = "tfidf+tfisf" if args.aligner == "tfisf" else "tfidf+e5-path (Khôi)"
+
+    # ---- chọn aligner: trả list (susp_off, susp_len, src_off, src_len) ----
+    if args.aligner == "tfisf":
+        params = {"th": args.th, "th3": args.th3}
+        def align_fn(susp_text, src_text):
+            return align_pair(susp_text, src_text, args.th, args.th, args.th3, 4)
+    else:
+        import torch
+        torch.set_num_threads(os.cpu_count() or 4)
+        from src.preprocess import split_sentences as khoi_split
+        from src.embedding import load_embedding_model, encode_sentences
+        from src.similarity import cosine_similarity as k_cos, get_top_k_matches
+        from src.alignment import align_matches, alignments_to_spans
+        params = {"model": "e5-base-v2", "threshold": args.khoi_threshold, "top_k": 5}
+        dev = "cuda" if torch.cuda.is_available() else "cpu"
+        print(f"[khoi] tải E5-base-v2 ({dev})...", flush=True)
+        _model = load_embedding_model("intfloat/e5-base-v2", device=dev)
+        def align_fn(susp_text, src_text):
+            su, ru = khoi_split(susp_text), khoi_split(src_text)
+            if not su or not ru:
+                return []
+            se = encode_sentences(su, _model, prefix="query:")
+            re_ = encode_sentences(ru, _model, prefix="passage:")
+            matches = get_top_k_matches(k_cos(se, re_), threshold=args.khoi_threshold, top_k=5)
+            spans = alignments_to_spans(align_matches(matches, 2, 5, 2), su, ru)
+            return [(p["suspicious_start"], p["suspicious_length"],
+                     p["source_start"], p["source_length"]) for p in spans]
 
     susp_dir, src_dir, spans_csv = PATHS[args.split]
     from sklearn.feature_extraction.text import TfidfVectorizer
@@ -78,12 +110,12 @@ def main():
         cand_sorted = cand[np.argsort(-sims[n - 1, cand])]
         merged = []
         for j in cand_sorted:
-            for o, l, *_ in align_pair(stext, src_full[j], args.th, args.th, args.th3, 4):
+            for o, l, *_ in align_fn(stext, src_full[j]):
                 merged.append((o, l))
         # gộp span từ nhiều nguồn: dùng luôn (PlagDet xử lý union theo ký tự)
         for o, l in merged:
             pred.append(Span(su, o, l))
-        if n % 50 == 0:
+        if n % 5 == 0 or n == len(subset):
             print(f"  align {n}/{len(subset)} ({time.time()-t0:.0f}s)", flush=True)
 
     # baseline + score
@@ -112,7 +144,7 @@ def main():
     save_result(args.method, {"plagdet": r.plagdet, "precision": r.precision, "recall": r.recall,
                               "f1": r.f1, "granularity": r.granularity},
                 kind="method", split=args.split, subset=len(subset), topk=k,
-                params={"th": args.th, "th3": args.th3}, eval_set=esid,
+                params=params, eval_set=esid,
                 runtime_sec=runtime, notes=args.notes)
     save_result("baseline (whole-doc)", {"plagdet": b.plagdet, "precision": b.precision,
                                          "recall": b.recall, "f1": b.f1, "granularity": b.granularity},
