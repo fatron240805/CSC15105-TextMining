@@ -87,15 +87,15 @@ def rewrite_passage(suspicious: str, source: str, *, model: str = None,
     cfg = types.GenerateContentConfig(system_instruction=_SYSTEM, temperature=temperature,
                                       response_mime_type="application/json")
     last = None
-    for attempt in range(3):                       # retry lỗi tạm thời (429/503/hiccup)
+    for attempt in range(5):                       # retry lỗi tạm thời (429 rate-limit/503/hiccup)
         try:
             resp = client.models.generate_content(model=model or MODEL, contents=prompt, config=cfg)
             break
         except Exception as e:
             last = e
-            time.sleep(1.5 * (attempt + 1))
+            time.sleep(5 * (attempt + 1))          # backoff 5,10,15,20s — chờ quota/phút hồi
     else:
-        raise RuntimeError(f"Gemini lỗi sau 3 lần thử: {last}")
+        raise RuntimeError(f"Gemini lỗi sau 5 lần thử: {last}")
     raw = (resp.text or "").strip()
     try:
         data = json.loads(raw)

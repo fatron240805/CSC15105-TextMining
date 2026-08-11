@@ -48,3 +48,5 @@ api_key
 .env
 .gemini/
 generation/__pycache__/
+
+evaluation/generation/
