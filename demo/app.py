@@ -137,6 +137,15 @@ ul{list-style:none;margin:0;padding:0}.cases li{border-bottom:1px solid var(--li
 .mcol .meta{font-family:var(--mono);font-size:11px;color:var(--ink-3);margin-bottom:10px}
 .mcol .passage{font:13px/1.7 var(--mono);white-space:pre-wrap;word-wrap:break-word}
 .mcol.susp .passage{background:var(--pl-soft);border-radius:6px;padding:10px 12px}
+.mfoot{display:flex;align-items:center;gap:12px;padding:12px 18px;border-top:1px solid var(--line)}
+.rwbtn{border:1px solid var(--good);background:none;color:var(--good);border-radius:8px;padding:7px 14px;
+ font:inherit;font-size:13px;font-weight:560;cursor:pointer}
+.rwbtn:hover{background:color-mix(in srgb,var(--good) 12%,transparent)}
+.rwbtn:disabled{opacity:.55;cursor:default}
+.rwnote{font-family:var(--mono);font-size:11px;color:var(--ink-3)}
+.mrw{padding:0 18px 16px}
+.mcol.rw{padding:0}.mcol.rw .lab{color:var(--good);margin-bottom:8px}
+.mcol.rw .passage{background:color-mix(in srgb,var(--good) 9%,transparent);border-radius:6px;padding:10px 12px}
 </style></head><body>
 <div class="top"><div><div class="eyebrow">PAN 2025 · Text Mining</div><h1>Kiểm tra đạo văn</h1></div>
  <button class="toggle" onclick="tt()">◐ Giao diện</button></div>
@@ -200,13 +209,28 @@ function render(text,d){
 }
 function openM(i){var c=window._C[i],t=window._T;if(!c)return;
  var sp=t.slice(c.start,c.start+c.len);
+ window._RW={susp:sp,src:c.src_text||''};
  var mo=document.getElementById('modal');
- mo.innerHTML='<div class="mcard"><div class="mtop"><h3>Đoạn #'+(i+1)+' — đối chiếu nghi vấn ↔ nguồn</h3>'
+ mo.innerHTML='<div class="mcard"><div class="mtop"><h3>Đoạn #'+(i+1)+' — đối chiếu & viết lại</h3>'
   +'<button class="x" title="Đóng (Esc)" onclick="closeM()">×</button></div><div class="mcols">'
   +'<div class="mcol susp"><div class="lab">Đoạn nghi vấn</div><div class="meta">ký tự '+c.start+'–'+(c.start+c.len)+'</div><div class="passage">'+esc(sp)+'</div></div>'
   +'<div class="mcol src"><div class="lab">Nguồn — đạo từ đây</div><div class="meta"><code>'+esc(c.source)+'</code> · ký tự '+c.src_start+'–'+(c.src_start+c.src_len)+'</div><div class="passage">'+esc(c.src_text||'(không có văn bản nguồn)')+'</div></div>'
-  +'</div></div>';
+  +'</div>'
+  +'<div class="mfoot"><button class="rwbtn" id="rwbtn" onclick="rewriteCase()">✎ Viết lại (khử đạo văn)</button>'
+  +'<span class="rwnote" id="rwnote">Gemini viết lại đoạn nghi vấn, giữ nội dung nhưng không lặp câu chữ nguồn.</span></div>'
+  +'<div class="mrw" id="mrw"></div></div>';
  mo.classList.add('open');
+}
+function rewriteCase(){var d=window._RW;if(!d)return;
+ var btn=document.getElementById('rwbtn'),note=document.getElementById('rwnote'),out=document.getElementById('mrw');
+ btn.disabled=true;note.textContent='Đang gọi Gemini…';out.innerHTML='';
+ fetch('/rewrite',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(d)})
+  .then(function(r){return r.json()}).then(function(j){
+   btn.disabled=false;
+   if(j.error){note.textContent='Lỗi: '+j.error;return}
+   note.textContent=j.changes||'';
+   out.innerHTML='<div class="mcol rw"><div class="lab">Bản viết lại (Gemini · '+esc(j.model||'')+')</div><div class="passage">'+esc(j.rewritten)+'</div></div>';
+  }).catch(function(e){btn.disabled=false;note.textContent='Lỗi: '+e});
 }
 function closeM(){document.getElementById('modal').classList.remove('open')}
 document.addEventListener('keydown',function(e){if(e.key==='Escape')closeM()});
@@ -229,12 +253,16 @@ def make_handler(detector, page):
                 self._send(404, b"not found", "text/plain")
 
         def do_POST(self):
-            if self.path != "/detect":
+            if self.path not in ("/detect", "/rewrite"):
                 self._send(404, b"not found", "text/plain"); return
             n = int(self.headers.get("Content-Length", 0))
             try:
-                text = json.loads(self.rfile.read(n) or b"{}").get("text", "")
-                out = detector.detect(text)
+                body = json.loads(self.rfile.read(n) or b"{}")
+                if self.path == "/detect":
+                    out = detector.detect(body.get("text", ""))
+                else:                                   # /rewrite — bước G (khử đạo văn)
+                    from generation.rewrite import rewrite_passage
+                    out = rewrite_passage(body.get("susp", ""), body.get("src", ""))
                 self._send(200, json.dumps(out).encode("utf-8"), "application/json")
             except Exception as e:
                 self._send(500, json.dumps({"error": str(e)}).encode("utf-8"), "application/json")
