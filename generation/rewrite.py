@@ -16,6 +16,23 @@ import json
 import os
 from pathlib import Path
 
+def _load_dotenv():
+    """Nạp .env (repo root hoặc thư mục hiện tại) vào os.environ — không ghi đè biến đã có."""
+    for base in (Path(__file__).resolve().parent.parent, Path.cwd()):
+        f = base / ".env"
+        if not f.exists():
+            continue
+        for line in f.read_text(encoding="utf-8").splitlines():
+            line = line.strip()
+            if not line or line.startswith("#") or "=" not in line:
+                continue
+            k, v = line.split("=", 1)
+            k = k.strip()
+            if k and k not in os.environ:
+                os.environ[k] = v.strip().strip('"').strip("'")
+
+
+_load_dotenv()
 MODEL = os.environ.get("GEMINI_MODEL", "gemini-flash-latest")
 
 _SYSTEM = (
