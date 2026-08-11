@@ -1,0 +1,17 @@
+{
+  "id": "whaleeatu/k7-e5-sweep",
+  "title": "K7 e5 sweep",
+  "code_file": "k7_e5_sweep.py",
+  "language": "python",
+  "kernel_type": "script",
+  "is_private": true,
+  "enable_gpu": true,
+  "machine_shape": "NvidiaTeslaT4",
+  "enable_internet": true,
+  "dataset_sources": [
+    "whaleeatu/pan25-corpus-val",
+    "whaleeatu/pan25-labels"
+  ],
+  "competition_sources": [],
+  "kernel_sources": []
+}

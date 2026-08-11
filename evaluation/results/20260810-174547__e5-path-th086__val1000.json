@@ -1,5 +1,5 @@
 {
-  "method": "tfidf+e5-path (Khôi)",
+  "method": "tfidf+e5-path th0.86 (Khôi)",
   "kind": "method",
   "split": "val",
   "subset": 1000,
@@ -17,7 +17,7 @@
     "granularity": 1.0232,
     "plagdet": 0.4628
   },
-  "runtime_sec": 9370.7,
-  "timestamp": "2026-08-10T13:38:02",
-  "notes": "E5 threshold=0.86, source-path"
+  "runtime_sec": 7705.5,
+  "timestamp": "2026-08-10T17:45:47",
+  "notes": "E5 sweep threshold=0.86, source-path"
 }

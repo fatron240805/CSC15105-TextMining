@@ -1,0 +1,23 @@
+{
+  "method": "tfidf+e5-path th0.84 (Khôi)",
+  "kind": "method",
+  "split": "val",
+  "subset": 1000,
+  "topk": 1,
+  "eval_set_id": "368d57d73822",
+  "params": {
+    "model": "e5-base-v2",
+    "threshold": 0.84,
+    "top_k": 5
+  },
+  "metrics": {
+    "precision": 0.5172,
+    "recall": 0.4563,
+    "f1": 0.4848,
+    "granularity": 1.0111,
+    "plagdet": 0.481
+  },
+  "runtime_sec": 7705.5,
+  "timestamp": "2026-08-10T17:45:47",
+  "notes": "E5 sweep threshold=0.84, source-path"
+}
