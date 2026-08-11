@@ -1,0 +1,94 @@
+<!doctype html><html lang="vi"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Đánh giá tổng hệ thống — PAN 2025 RAG phát hiện đạo văn</title>
+<style>
+:root{
+ --paper:#f4f5f2;--surface:#fff;--surface-2:#eceee9;--ink:#14181c;--ink-2:#545b61;--ink-3:#7c848a;
+ --line:#d7dbd4;--accent:#2b6fb0;--pl:#c05e10;--good:#3b7548;--r:12px;
+ --font:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+ --mono:ui-monospace,"Cascadia Code","JetBrains Mono",Menlo,Consolas,monospace}
+@media(prefers-color-scheme:dark){:root:not([data-theme="light"]){
+ --paper:#0f1317;--surface:#171d22;--surface-2:#1e252b;--ink:#e7eae6;--ink-2:#9aa3aa;--ink-3:#6f787f;
+ --line:#29313a;--accent:#5a9fe0;--pl:#e08a3c;--good:#6db079}}
+:root[data-theme="dark"]{
+ --paper:#0f1317;--surface:#171d22;--surface-2:#1e252b;--ink:#e7eae6;--ink-2:#9aa3aa;--ink-3:#6f787f;
+ --line:#29313a;--accent:#5a9fe0;--pl:#e08a3c;--good:#6db079}
+*{box-sizing:border-box}
+body{margin:0;background:var(--paper);color:var(--ink);font-family:var(--font);line-height:1.6}
+.top{position:sticky;top:0;z-index:5;display:flex;align-items:center;gap:14px;padding:14px clamp(16px,4vw,32px);
+ background:color-mix(in srgb,var(--paper) 88%,transparent);backdrop-filter:blur(8px);border-bottom:1px solid var(--line)}
+.top .eyebrow{font-family:var(--mono);font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--accent)}
+.top h1{font-size:16px;margin:0;font-weight:640}
+.top .meta{font-family:var(--mono);font-size:12px;color:var(--ink-3);margin-left:auto}
+.toggle{border:1px solid var(--line);background:var(--surface);color:var(--ink-2);border-radius:999px;
+ padding:6px 12px;font:inherit;font-size:12px;cursor:pointer}.toggle:hover{border-color:var(--accent);color:var(--accent)}
+.wrap{max-width:1000px;margin:0 auto;padding:clamp(18px,3vw,32px);display:flex;flex-direction:column;gap:20px}
+.flow{display:flex;flex-wrap:wrap;align-items:center;gap:8px;font-family:var(--mono);font-size:13px;
+ background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:16px 20px}
+.flow b{padding:5px 11px;border-radius:7px;background:var(--surface-2)}
+.flow b.r{color:var(--accent)}.flow b.d{color:var(--pl)}.flow b.g{color:var(--good)}
+.flow span{color:var(--ink-3)}
+.card{border:1px solid var(--line);border-radius:var(--r);background:var(--surface);padding:18px 20px}
+.chd{display:flex;align-items:baseline;gap:12px;margin-bottom:14px}
+.chd h2{font-size:15px;margin:0;font-weight:640}.chd .eid{font-family:var(--mono);font-size:11px;color:var(--ink-3)}
+table{border-collapse:collapse;width:100%;font-size:13px}
+th,td{text-align:right;padding:9px 12px;border-bottom:1px solid var(--line);white-space:nowrap}
+th{font-family:var(--mono);font-size:10.5px;letter-spacing:.04em;text-transform:uppercase;color:var(--ink-3);font-weight:600}
+th:first-child,td:first-child{text-align:left}
+td.n{font-variant-numeric:tabular-nums}td.big{font-weight:700}
+tr.top td{background:color-mix(in srgb,var(--accent) 7%,transparent)}
+tr.top td:first-child{font-weight:640}
+.cfg{font-family:var(--mono);font-size:10px;color:var(--ink-3)}
+.statrow{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:14px}
+.stat{border:1px solid var(--line);border-radius:10px;padding:14px 16px;background:var(--surface-2)}
+.stat .k{font-family:var(--mono);font-size:10.5px;letter-spacing:.04em;text-transform:uppercase;color:var(--ink-3)}
+.big2{font-size:24px;font-weight:680;font-variant-numeric:tabular-nums;margin:6px 0 2px}
+.big2 .pl{color:var(--pl)}.big2 .good,.big2.good{color:var(--good)}
+.stat .sub{font-size:12px;color:var(--ink-2)}
+.note{font-size:12.5px;color:var(--ink-2);margin:14px 0 0;line-height:1.65}
+.foot{color:var(--ink-3);font-family:var(--mono);font-size:11px;text-align:center;padding:8px}
+</style></head><body>
+<div class="top">
+ <div><div class="eyebrow">PAN 2025 · Text Mining</div><h1>Đánh giá tổng hệ thống RAG phát hiện đạo văn</h1></div>
+ <span class="meta">val 5522 susp · dựng 2026-08-11 12:11</span>
+ <button class="toggle" onclick="var r=document.documentElement;r.setAttribute('data-theme',r.getAttribute('data-theme')==='dark'?'light':'dark')">◐</button>
+</div>
+<div class="wrap">
+ <div class="flow"><b class="r">Retrieval</b><span>TF-IDF top-k</span><span>→</span>
+  <b class="d">Detection</b><span>tf-isf seed-and-extend + PlagDet</span><span>→</span>
+  <b class="g">Generation</b><span>Gemini viết lại khử đạo văn</span></div>
+
+ <section class="card">
+  <div class="chd"><h2>Tầng 1 — Retrieval (truy hồi nguồn)</h2><span class="eid">val 5522 susp · Recall@k / MRR</span></div>
+  <table><thead><tr><th>Phương pháp</th><th>R@1</th><th>R@5</th><th>R@10</th><th>MRR</th></tr></thead>
+  <tbody><tr class="top"><td>TF-IDF (dùng chính thức)</td><td class="n">0.975</td><td class="n">0.994</td><td class="n">0.995</td><td class="n">0.985</td></tr><tr class=""><td>Neural (bge-small)</td><td class="n">0.908</td><td class="n">0.965</td><td class="n">0.975</td><td class="n">0.934</td></tr></tbody></table>
+ </section>
+
+ <section class="card">
+  <div class="chd"><h2>Tầng 2 — Detection (phát hiện + đối chiếu)</h2><span class="eid">val 5522 susp · PlagDet (PAN 2015)</span></div>
+  <table><thead><tr><th>Phương pháp</th><th>PlagDet</th><th>P</th><th>R</th></tr></thead>
+  <tbody><tr class="top"><td>tfidf+tfisf <span class="cfg">top-1</span></td><td class="n big">0.713</td><td class="n">0.736</td><td class="n">0.696</td></tr><tr class=""><td>baseline (whole-doc) <span class="cfg">baseline</span></td><td class="n big">0.675</td><td class="n">0.509</td><td class="n">0.999</td></tr><tr class=""><td>tfidf+tfisf <span class="cfg">top-3</span></td><td class="n big">0.620</td><td class="n">0.624</td><td class="n">0.704</td></tr></tbody></table>
+ </section>
+
+  <section class="card">
+   <div class="chd"><h2>Tầng 3 — Generation (viết lại khử đạo văn)</h2>
+    <span class="eid">Gemini · suspicious-document010237.txt · 9 đoạn viết lại</span></div>
+   <div class="statrow">
+     <div class="stat"><div class="k">Detector char-ratio (đoạn nghi vấn bị gắn cờ)</div>
+       <div class="big2"><span class="pl">0.176</span> → <span class="good">0.080</span></div>
+       <div class="sub">chính detector của hệ gắn cờ ít hơn ~55% sau khi viết lại</div></div>
+     <div class="stat"><div class="k">Trùng lặp từ vựng với nguồn (3-gram)</div>
+       <div class="big2"><span class="pl">0.115</span> → <span class="good">0.055</span></div>
+       <div class="sub">giảm ~52%</div></div>
+     <div class="stat"><div class="k">Giữ nghĩa (fidelity, embedding cos)</div>
+       <div class="big2 good">0.945</div><div class="sub">cao = nội dung được bảo toàn</div></div>
+     <div class="stat"><div class="k">Tỉ lệ độ dài (chống rút gọn giả)</div>
+       <div class="big2">0.86</div><div class="sub">quanh 1.0 = không cắt xén nội dung</div></div>
+   </div>
+   <p class="note">Mẫu: 9 đoạn viết lại thành công, 24 lỗi (hết quota Gemini free-tier).
+    LLM-as-judge (⚠ Gemini tự chấm chính nó — chỉ tham khảo): fidelity 5.0/5,
+    originality 4.7/5. Dùng cặp gold-source (không qua retrieval) để đo riêng generator.</p>
+  </section>
+ <div class="foot">Retrieval TF-IDF → Detection tf-isf (PlagDet) → Generation Gemini · đánh giá 3 tầng theo design doc</div>
+</div>
+</body></html>
