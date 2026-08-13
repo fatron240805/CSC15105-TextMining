@@ -146,6 +146,18 @@ ul{list-style:none;margin:0;padding:0}.cases li{border-bottom:1px solid var(--li
 .mrw{padding:0 18px 16px}
 .mcol.rw{padding:0}.mcol.rw .lab{color:var(--good);margin-bottom:8px}
 .mcol.rw .passage{background:color-mix(in srgb,var(--good) 9%,transparent);border-radius:6px;padding:10px 12px}
+.rwbtn.cl{border-color:var(--accent);color:var(--accent)}
+.rwbtn.cl:hover{background:color-mix(in srgb,var(--accent) 12%,transparent)}
+.rwbtn.vf{border-color:var(--ink-2);color:var(--ink-2)}
+.rwbtn.vf:hover{background:var(--surface-2)}
+.mfoot{flex-wrap:wrap}
+.mcol.cl .lab{color:var(--accent)} .mcol.vf .lab{color:var(--ink-2)}
+.tag{display:inline-block;font-family:var(--mono);font-size:13px;font-weight:600;color:var(--accent);
+ background:var(--accent-soft);border:1px solid color-mix(in srgb,var(--accent) 40%,var(--line));
+ border-radius:999px;padding:4px 13px;margin-bottom:8px}
+.verdict{font-size:14px;font-weight:640;margin-bottom:6px}
+.verdict.yes{color:var(--good)} .verdict.no{color:var(--pl)}
+.rtext{font-size:13.5px;color:var(--ink-2);line-height:1.6}
 </style></head><body>
 <div class="top"><div><div class="eyebrow">PAN 2025 · Text Mining</div><h1>Kiểm tra đạo văn</h1></div>
  <button class="toggle" onclick="tt()">◐ Giao diện</button></div>
@@ -216,8 +228,11 @@ function openM(i){var c=window._C[i],t=window._T;if(!c)return;
   +'<div class="mcol susp"><div class="lab">Đoạn nghi vấn</div><div class="meta">ký tự '+c.start+'–'+(c.start+c.len)+'</div><div class="passage">'+esc(sp)+'</div></div>'
   +'<div class="mcol src"><div class="lab">Nguồn — đạo từ đây</div><div class="meta"><code>'+esc(c.source)+'</code> · ký tự '+c.src_start+'–'+(c.src_start+c.src_len)+'</div><div class="passage">'+esc(c.src_text||'(không có văn bản nguồn)')+'</div></div>'
   +'</div>'
-  +'<div class="mfoot"><button class="rwbtn" id="rwbtn" onclick="rewriteCase()">✎ Viết lại (khử đạo văn)</button>'
-  +'<span class="rwnote" id="rwnote">Gemini viết lại đoạn nghi vấn, giữ nội dung nhưng không lặp câu chữ nguồn.</span></div>'
+  +'<div class="mfoot">'
+   +'<button class="rwbtn cl" id="clbtn" onclick="classifyCase()">◈ Phân loại kỹ thuật</button>'
+   +'<button class="rwbtn vf" id="vfbtn" onclick="verifyCase()">✓ Xác minh (AI)</button>'
+   +'<button class="rwbtn" id="rwbtn" onclick="rewriteCase()">✎ Viết lại</button>'
+   +'<span class="rwnote" id="rwnote">Gemini: phân loại kiểu đạo · xác minh khử báo giả · viết lại khử đạo.</span></div>'
   +'<div class="mrw" id="mrw"></div></div>';
  mo.classList.add('open');
 }
@@ -230,6 +245,31 @@ function rewriteCase(){var d=window._RW;if(!d)return;
    if(j.error){note.textContent='Lỗi: '+j.error;return}
    note.textContent=j.changes||'';
    out.innerHTML='<div class="mcol rw"><div class="lab">Bản viết lại (Gemini · '+esc(j.model||'')+')</div><div class="passage">'+esc(j.rewritten)+'</div></div>';
+  }).catch(function(e){btn.disabled=false;note.textContent='Lỗi: '+e});
+}
+function classifyCase(){var d=window._RW;if(!d)return;
+ var btn=document.getElementById('clbtn'),note=document.getElementById('rwnote'),out=document.getElementById('mrw');
+ btn.disabled=true;note.textContent='Đang phân loại kỹ thuật…';out.innerHTML='';
+ fetch('/classify',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(d)})
+  .then(function(r){return r.json()}).then(function(j){btn.disabled=false;
+   if(j.error){note.textContent='Lỗi: '+j.error;return}
+   note.textContent=j.confidence!=null?'độ tin cậy '+Math.round(j.confidence*100)+'%':'';
+   out.innerHTML='<div class="mcol cl"><div class="lab">Kỹ thuật đạo văn</div>'
+    +'<div class="tag">'+esc(j.technique_vi||j.technique||'—')+'</div>'
+    +'<div class="rtext">'+esc(j.explanation||'')+'</div></div>';
+  }).catch(function(e){btn.disabled=false;note.textContent='Lỗi: '+e});
+}
+function verifyCase(){var d=window._RW;if(!d)return;
+ var btn=document.getElementById('vfbtn'),note=document.getElementById('rwnote'),out=document.getElementById('mrw');
+ btn.disabled=true;note.textContent='Đang xác minh…';out.innerHTML='';
+ fetch('/verify',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(d)})
+  .then(function(r){return r.json()}).then(function(j){btn.disabled=false;
+   if(j.error){note.textContent='Lỗi: '+j.error;return}
+   note.textContent=j.confidence!=null?'độ tin cậy '+Math.round(j.confidence*100)+'%':'';
+   var ok=j.is_plagiarism;
+   out.innerHTML='<div class="mcol vf"><div class="lab">Xác minh (khử báo giả)</div>'
+    +'<div class="verdict '+(ok?'yes':'no')+'">'+(ok?'✓ Đúng là đạo văn':'✗ Chỉ trùng chủ đề — báo giả')+'</div>'
+    +'<div class="rtext">'+esc(j.reason||'')+'</div></div>';
   }).catch(function(e){btn.disabled=false;note.textContent='Lỗi: '+e});
 }
 function closeM(){document.getElementById('modal').classList.remove('open')}
@@ -253,16 +293,23 @@ def make_handler(detector, page):
                 self._send(404, b"not found", "text/plain")
 
         def do_POST(self):
-            if self.path not in ("/detect", "/rewrite"):
+            if self.path not in ("/detect", "/rewrite", "/classify", "/verify"):
                 self._send(404, b"not found", "text/plain"); return
             n = int(self.headers.get("Content-Length", 0))
             try:
                 body = json.loads(self.rfile.read(n) or b"{}")
+                su, sr = body.get("susp", ""), body.get("src", "")
                 if self.path == "/detect":
                     out = detector.detect(body.get("text", ""))
-                else:                                   # /rewrite — bước G (khử đạo văn)
+                elif self.path == "/rewrite":           # bước G — viết lại khử đạo văn
                     from generation.rewrite import rewrite_passage
-                    out = rewrite_passage(body.get("susp", ""), body.get("src", ""))
+                    out = rewrite_passage(su, sr)
+                elif self.path == "/classify":          # #1 — phân loại kỹ thuật + giải thích
+                    from generation.classify import classify_passage
+                    out = classify_passage(su, sr)
+                else:                                   # /verify — #3 — xác minh khử FP
+                    from generation.verify import verify_pair
+                    out = verify_pair(su, sr)
                 self._send(200, json.dumps(out).encode("utf-8"), "application/json")
             except Exception as e:
                 self._send(500, json.dumps({"error": str(e)}).encode("utf-8"), "application/json")
