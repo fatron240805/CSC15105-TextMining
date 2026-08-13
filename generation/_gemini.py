@@ -7,6 +7,7 @@ generate_json(): gọi Gemini trả JSON, retry backoff cho 429 free-tier.
 from __future__ import annotations
 import json
 import os
+import re
 import time
 from pathlib import Path
 
@@ -111,12 +112,21 @@ def _fpt_json(prompt, system, model, temperature, retries) -> dict:
     last = None
     for attempt in range(retries):
         try:
-            r = client.chat.completions.create(model=mdl, messages=msgs, temperature=temperature)
-            raw = _strip_fences(r.choices[0].message.content or "")
+            r = client.chat.completions.create(model=mdl, messages=msgs, temperature=temperature,
+                                               max_tokens=4096)   # reasoning model tiêu token trước
+            msg = r.choices[0].message
+            content = msg.content or getattr(msg, "reasoning_content", None) or ""
+            raw = _strip_fences(content)
             try:
                 return json.loads(raw)
             except (json.JSONDecodeError, TypeError):
-                return {"_raw": raw}
+                m = re.search(r"\{.*\}", raw, re.S)        # bắt khối {...} lẫn trong text/reasoning
+                if m:
+                    try:
+                        return json.loads(m.group(0))
+                    except json.JSONDecodeError:
+                        pass
+                return {"_raw": raw[:600]}
         except Exception as e:
             last = e
             time.sleep(5 * (attempt + 1))
