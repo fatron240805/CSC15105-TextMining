@@ -1,0 +1,16 @@
+{
+  "id": "whaleeatu/k8-model-compare",
+  "title": "K8 model compare",
+  "code_file": "k8_model_compare.py",
+  "language": "python",
+  "kernel_type": "script",
+  "is_private": true,
+  "enable_gpu": false,
+  "enable_internet": true,
+  "dataset_sources": [
+    "whaleeatu/pan25-corpus-val",
+    "whaleeatu/pan25-labels"
+  ],
+  "competition_sources": [],
+  "kernel_sources": []
+}
