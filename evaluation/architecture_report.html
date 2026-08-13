@@ -1,0 +1,398 @@
+<!doctype html><html lang="vi"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Kiến trúc phát hiện đạo văn</title>
+<style>
+:root{
+ --paper:#f5f4f0;--surface:#fbfbf8;--surface-2:#ecebe4;--ink:#171a1d;--ink-2:#565c60;--ink-3:#868b8c;
+ --line:#dcdbd1;--accent:#2b6fb0;--accent-soft:rgba(43,111,176,.10);--pl:#c05e10;--pl-soft:#ffe7cf;
+ --good:#3b7548;--good-soft:rgba(59,117,72,.12);--r:13px;
+ --serif:"Iowan Old Style","Palatino Linotype","Book Antiqua",Palatino,Georgia,serif;
+ --sans:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+ --mono:ui-monospace,"Cascadia Code","JetBrains Mono","SF Mono",Menlo,Consolas,monospace}
+@media(prefers-color-scheme:dark){:root:not([data-theme="light"]){
+ --paper:#101418;--surface:#171c21;--surface-2:#1f262c;--ink:#e9ebe6;--ink-2:#9aa1a6;--ink-3:#6d757a;
+ --line:#283037;--accent:#5ea3e4;--accent-soft:rgba(94,163,228,.15);--pl:#e58a3f;--pl-soft:#48331c;
+ --good:#6fb37c;--good-soft:rgba(111,179,124,.16)}}
+:root[data-theme="dark"]{
+ --paper:#101418;--surface:#171c21;--surface-2:#1f262c;--ink:#e9ebe6;--ink-2:#9aa1a6;--ink-3:#6d757a;
+ --line:#283037;--accent:#5ea3e4;--accent-soft:rgba(94,163,228,.15);--pl:#e58a3f;--pl-soft:#48331c;
+ --good:#6fb37c;--good-soft:rgba(111,179,124,.16)}
+*{box-sizing:border-box}
+body{margin:0;background:var(--paper);color:var(--ink);font-family:var(--sans);line-height:1.65;
+ -webkit-font-smoothing:antialiased;font-size:16px}
+.top{position:sticky;top:0;z-index:9;display:flex;align-items:center;gap:14px;padding:13px clamp(16px,4vw,40px);
+ background:color-mix(in srgb,var(--paper) 86%,transparent);backdrop-filter:blur(9px);border-bottom:1px solid var(--line)}
+.top .brand{font-family:var(--mono);font-size:11px;letter-spacing:.13em;text-transform:uppercase;color:var(--accent)}
+.top .who{font-family:var(--mono);font-size:11px;color:var(--ink-3);margin-left:auto}
+.toggle{border:1px solid var(--line);background:var(--surface);color:var(--ink-2);border-radius:999px;
+ width:34px;height:30px;font-size:13px;cursor:pointer}.toggle:hover{border-color:var(--accent);color:var(--accent)}
+.wrap{max-width:940px;margin:0 auto;padding:clamp(22px,4vw,52px) clamp(16px,4vw,40px) 60px}
+.hero{margin-bottom:46px}
+.eyebrow{font-family:var(--mono);font-size:11.5px;letter-spacing:.14em;text-transform:uppercase;color:var(--pl);margin:0 0 14px}
+h1{font-family:var(--serif);font-weight:600;font-size:clamp(34px,6vw,56px);line-height:1.04;letter-spacing:-.015em;
+ margin:0 0 18px;text-wrap:balance}
+.lede{font-size:clamp(17px,2.4vw,20px);color:var(--ink-2);max-width:60ch;margin:0}
+.lede b{color:var(--ink);font-weight:600}
+figure{margin:0}
+.fig{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:22px 20px 14px}
+.fig svg{display:block;width:100%;height:auto;color:var(--ink)}
+figcaption{font-family:var(--mono);font-size:11.5px;color:var(--ink-3);text-align:center;margin-top:10px;line-height:1.5}
+section{margin-top:52px;scroll-margin-top:70px}
+.part{display:flex;align-items:baseline;gap:14px;margin:0 0 8px}
+.pnum{font-family:var(--serif);font-size:15px;font-weight:600;color:var(--pl);font-variant-numeric:tabular-nums;
+ border:1.5px solid var(--pl);border-radius:50%;width:30px;height:30px;flex:none;display:flex;align-items:center;
+ justify-content:center;line-height:1}
+h2{font-family:var(--serif);font-weight:600;font-size:clamp(23px,3.4vw,30px);line-height:1.12;margin:0;letter-spacing:-.01em}
+.sub{color:var(--ink-2);max-width:66ch;margin:12px 0 22px}
+p{max-width:66ch}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:20px;align-items:start}
+@media(max-width:720px){.grid2{grid-template-columns:1fr}}
+.panel{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:18px 20px}
+.panel h3{font-size:12px;font-family:var(--mono);letter-spacing:.07em;text-transform:uppercase;color:var(--ink-3);
+ margin:0 0 12px;font-weight:600}
+.steps{list-style:none;margin:0;padding:0;counter-reset:s}
+.steps li{position:relative;padding:0 0 13px 30px;counter-increment:s;font-size:14.5px;color:var(--ink-2)}
+.steps li::before{content:counter(s);position:absolute;left:0;top:1px;font-family:var(--mono);font-size:11px;font-weight:600;
+ color:var(--accent);border:1px solid var(--accent);border-radius:5px;width:19px;height:19px;display:flex;
+ align-items:center;justify-content:center}
+.steps li:last-child{padding-bottom:0}
+.steps b{color:var(--ink);font-weight:600}
+.facts{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:2px;
+ background:var(--line);border:1px solid var(--line);border-radius:11px;overflow:hidden;margin:6px 0 4px}
+.facts div{background:var(--surface);padding:13px 15px}
+.facts .v{font-family:var(--mono);font-size:20px;font-weight:600;color:var(--ink);font-variant-numeric:tabular-nums}
+.facts .l{font-size:11.5px;color:var(--ink-3);margin-top:2px}
+table{border-collapse:collapse;width:100%;font-size:13.5px}
+th,td{text-align:right;padding:9px 13px;border-bottom:1px solid var(--line);white-space:nowrap}
+th{font-family:var(--mono);font-size:10.5px;letter-spacing:.05em;text-transform:uppercase;color:var(--ink-3);font-weight:600}
+th:first-child,td:first-child{text-align:left}
+td.n{font-variant-numeric:tabular-nums}
+.chart{margin-top:4px}
+.bar{display:grid;grid-template-columns:170px 1fr;align-items:center;gap:12px;margin:9px 0}
+.bar .bl{font-size:13px;display:flex;flex-wrap:wrap;gap:5px;align-items:baseline}
+.bar .bl .cfg{font-family:var(--mono);font-size:10px;color:var(--ink-3)}
+.track{position:relative;height:24px;background:var(--surface-2);border-radius:6px;overflow:hidden}
+.fill{height:100%;background:var(--accent);border-radius:6px 5px 5px 6px;min-width:40px;display:flex;
+ align-items:center;justify-content:flex-end;transition:width .6s ease}
+.fill.best{background:var(--pl)}
+.fill .v{font-family:var(--mono);font-size:11.5px;color:#fff;font-weight:600;padding-right:8px;font-variant-numeric:tabular-nums}
+.refline{position:absolute;top:-3px;bottom:-3px;width:0;border-left:2px dashed var(--good);pointer-events:none}
+.refline span{position:absolute;top:-15px;left:4px;font-family:var(--mono);font-size:9.5px;color:var(--good);white-space:nowrap}
+.axis{display:flex;justify-content:space-between;font-family:var(--mono);font-size:10px;color:var(--ink-3);
+ margin-top:6px;padding-left:182px}
+.callout{border-left:3px solid var(--pl);background:var(--pl-soft);border-radius:0 9px 9px 0;padding:12px 16px;
+ margin:18px 0 0;font-size:14px;color:var(--ink)}
+.callout b{color:var(--pl)}
+.kw{font-family:var(--mono);font-size:.88em;background:var(--surface-2);border:1px solid var(--line);
+ border-radius:5px;padding:1px 5px}
+.foot{margin-top:56px;padding-top:20px;border-top:1px solid var(--line);font-family:var(--mono);font-size:11px;
+ color:var(--ink-3);display:flex;flex-wrap:wrap;gap:6px 16px}
+.io{display:flex;flex-direction:column;gap:11px;background:var(--surface);border:1px solid var(--line);
+ border-left:3px solid var(--accent);border-radius:0 11px 11px 0;padding:15px 18px;margin:0 0 24px;max-width:70ch}
+.io .task{font-size:14.5px;color:var(--ink);line-height:1.55}
+.io .task b{display:inline-block;font-family:var(--mono);font-size:10.5px;letter-spacing:.07em;text-transform:uppercase;
+ color:var(--accent);margin-right:9px}
+.io .ioflow{display:flex;flex-wrap:wrap;align-items:center;gap:9px}
+.io .chip{font-family:var(--mono);font-size:12px;padding:5px 11px;border-radius:8px;background:var(--surface-2);
+ border:1px solid var(--line);color:var(--ink)}
+.io .chip .t{color:var(--ink-3);margin-right:6px;font-size:9.5px;letter-spacing:.06em;text-transform:uppercase}
+.io .chip.in{border-color:color-mix(in srgb,var(--accent) 45%,var(--line))}
+.io .chip.in .t{color:var(--accent)}
+.io .chip.out{border-color:color-mix(in srgb,var(--pl) 45%,var(--line))}
+.io .chip.out .t{color:var(--pl)}
+.io .arr{color:var(--ink-3);font-size:15px}
+/* diagram helpers */
+.dg .box{fill:var(--surface);stroke:var(--ink-3);stroke-width:1.4}
+.dg .box.acc{stroke:var(--accent)}.dg .box.pl{stroke:var(--pl)}.dg .box.good{stroke:var(--good)}
+.dg text{fill:var(--ink);font-family:var(--sans)}
+.dg .lbl{fill:var(--ink-3);font-family:var(--mono)}
+.dg .flow{stroke:var(--ink-3);stroke-width:1.6;fill:none}
+.dg .cell{fill:var(--surface-2);stroke:var(--line);stroke-width:1}
+.dg .seed{fill:var(--accent)}
+.dg .case{fill:none;stroke:var(--pl);stroke-width:2.2;rx:6}
+@media(prefers-reduced-motion:reduce){.fill{transition:none}}
+</style></head><body>
+<div class="top">
+ <span class="brand">PAN 2025 · Text Mining</span>
+ <span class="who">CSC15105 · báo cáo kiến trúc</span>
+ <button class="toggle" title="Sáng/tối" aria-label="Đổi giao diện"
+  onclick="var r=document.documentElement;r.setAttribute('data-theme',r.getAttribute('data-theme')==='dark'?'light':'dark')">◐</button>
+</div>
+
+<div class="wrap">
+ <header class="hero">
+  <p class="eyebrow">Phát hiện · Đối chiếu · Viết lại</p>
+  <h1>Kiến trúc phát hiện đạo văn</h1>
+  <p class="lede">Một pipeline <b>RAG ba tầng</b> trên corpus khoa học arXiv của PAN 2025:
+   truy hồi nguồn khả nghi bằng TF-IDF, đối chiếu từng đoạn bằng thuật toán
+   <b>seed-and-extend</b>, rồi viết lại để khử đạo văn. Báo cáo này mổ xẻ ba tầng đầu —
+   kiến trúc, không gian tìm kiếm, và cơ chế đối chiếu — kèm kết quả đo trên tập validation.</p>
+
+  <figure class="fig" style="margin-top:30px">
+   <svg class="dg" viewBox="0 0 920 210" role="img"
+     aria-label="Sơ đồ pipeline: tài liệu nghi vấn qua Retrieval, Alignment, Generation; kho nguồn nạp vào Retrieval">
+    <defs><marker id="ar" markerWidth="9" markerHeight="9" refX="7" refY="3" orient="auto">
+      <path d="M0,0 L7,3 L0,6 Z" fill="var(--ink-3)"/></marker></defs>
+    <!-- input -->
+    <rect class="box" x="16" y="70" width="120" height="62" rx="9"/>
+    <text x="76" y="96" text-anchor="middle" font-size="13" font-weight="600">Tài liệu</text>
+    <text x="76" y="114" text-anchor="middle" font-size="13" font-weight="600">nghi vấn</text>
+    <!-- retrieval -->
+    <rect class="box acc" x="212" y="66" width="150" height="70" rx="9"/>
+    <text x="287" y="92" text-anchor="middle" font-size="14" font-weight="600">Retrieval</text>
+    <text x="287" y="112" text-anchor="middle" font-size="11.5" class="lbl">TF-IDF top-k</text>
+    <!-- alignment -->
+    <rect class="box pl" x="438" y="66" width="160" height="70" rx="9"/>
+    <text x="518" y="92" text-anchor="middle" font-size="14" font-weight="600">Alignment</text>
+    <text x="518" y="112" text-anchor="middle" font-size="11.5" class="lbl">tf-isf seed-extend</text>
+    <!-- generation -->
+    <rect class="box good" x="674" y="66" width="150" height="70" rx="9"/>
+    <text x="749" y="92" text-anchor="middle" font-size="14" font-weight="600">Generation</text>
+    <text x="749" y="112" text-anchor="middle" font-size="11.5" class="lbl">Gemini viết lại</text>
+    <!-- corpus -->
+    <rect class="box" x="212" y="168" width="150" height="34" rx="7"/>
+    <text x="287" y="190" text-anchor="middle" font-size="12" class="lbl">Kho nguồn · 7 949 tài liệu</text>
+    <!-- arrows -->
+    <line class="flow" x1="136" y1="101" x2="206" y2="101" marker-end="url(#ar)"/>
+    <line class="flow" x1="362" y1="101" x2="432" y2="101" marker-end="url(#ar)"/>
+    <line class="flow" x1="598" y1="101" x2="668" y2="101" marker-end="url(#ar)"/>
+    <line class="flow" x1="287" y1="168" x2="287" y2="140" marker-end="url(#ar)"/>
+    <text x="399" y="58" text-anchor="middle" font-size="10.5" class="lbl">top-k nguồn</text>
+    <text x="633" y="58" text-anchor="middle" font-size="10.5" class="lbl">span (nghi vấn ↔ nguồn)</text>
+   </svg>
+   <figcaption>Dòng dữ liệu end-to-end. Kho nguồn được đánh chỉ mục một lần; mỗi tài liệu nghi vấn đi qua ba tầng.</figcaption>
+  </figure>
+ </header>
+
+ <!-- ===================== PHẦN 1 ===================== -->
+ <section id="p1">
+  <div class="part"><span class="pnum">1</span><h2>Kiến trúc pipeline</h2></div>
+  <p class="sub">Bài toán PAN 2025 (Generative Plagiarism Detection): với mỗi tài liệu nghi vấn,
+   xác định <em>đoạn nào</em> bị đạo và <em>từ nguồn nào</em>, chấm theo <span class="kw">PlagDet</span>
+   mức ký tự. Hệ chia thành các tầng tách bạch, mỗi tầng một trách nhiệm.</p>
+
+  <div class="io">
+   <div class="task"><b>Bài toán</b>Cho một tài liệu nghi vấn và một kho nguồn, tìm mọi đoạn đạo văn,
+    chỉ ra nguồn tương ứng, và (tuỳ chọn) viết lại để khử đạo — chấm điểm mức ký tự.</div>
+   <div class="ioflow">
+    <span class="chip in"><span class="t">Input</span>tài liệu nghi vấn (.txt) + kho 7 949 nguồn</span>
+    <span class="arr">→</span>
+    <span class="chip out"><span class="t">Output</span>span (offset, length, nguồn) + bản viết lại</span>
+   </div>
+  </div>
+
+  <div class="panel" style="margin-bottom:18px">
+   <h3>Nền dữ liệu</h3>
+   <div class="facts">
+    <div><div class="v">7 949</div><div class="l">tài liệu nguồn (val)</div></div>
+    <div><div class="v">5 522</div><div class="l">tài liệu nghi vấn có đạo văn</div></div>
+    <div><div class="v">arXiv</div><div class="l">văn bản khoa học (ar5iv)</div></div>
+    <div><div class="v">PlagDet</div><div class="l">thước đo PAN 2015</div></div>
+   </div>
+  </div>
+
+  <table>
+   <thead><tr><th>Tầng</th><th>Đầu vào</th><th>Đầu ra</th><th>Phương pháp</th></tr></thead>
+   <tbody>
+    <tr><td><b>Retrieval</b></td><td>tài liệu nghi vấn</td><td>top-k nguồn khả nghi</td><td>TF-IDF + cosine</td></tr>
+    <tr><td><b>Alignment</b></td><td>cặp (nghi vấn, nguồn)</td><td>span đạo văn + span nguồn</td><td>tf-isf seed-and-extend</td></tr>
+    <tr><td><b>Scoring</b></td><td>span dự đoán vs gold</td><td>PlagDet / P / R</td><td>PAN 2015 char-level</td></tr>
+    <tr><td><b>Generation</b></td><td>cặp đoạn (nghi vấn, nguồn)</td><td>đoạn viết lại khử đạo</td><td>Gemini (reverse RAG)</td></tr>
+   </tbody>
+  </table>
+  <p class="callout">Tách tầng cho phép <b>đánh giá độc lập</b> từng khâu: retrieval đo bằng Recall@k,
+   alignment đo bằng PlagDet, generation đo bằng mức giảm bị-phát-hiện — thay vì một điểm số gộp che mất điểm yếu.</p>
+ </section>
+
+ <!-- ===================== PHẦN 2 ===================== -->
+ <section id="p2">
+  <div class="part"><span class="pnum">2</span><h2>Không gian tìm kiếm &amp; Retrieval</h2></div>
+  <p class="sub">Không thể đối chiếu một tài liệu với cả 7 949 nguồn — quá tốn kém. Tầng retrieval
+   thu hẹp còn một nhúm ứng viên, bằng cách biến mỗi tài liệu thành một <b>vector từ vựng</b>
+   rồi so cosine.</p>
+
+  <div class="io">
+   <div class="task"><b>Bài toán</b>Thu hẹp 7 949 nguồn xuống một nhúm ứng viên khả nghi cho mỗi tài liệu nghi vấn —
+    đủ nhỏ để tầng sau đối chiếu chi tiết.</div>
+   <div class="ioflow">
+    <span class="chip in"><span class="t">Input</span>tài liệu nghi vấn + chỉ mục TF-IDF của kho</span>
+    <span class="arr">→</span>
+    <span class="chip out"><span class="t">Output</span>top-k nguồn xếp hạng theo cosine</span>
+   </div>
+  </div>
+
+  <div class="grid2">
+   <div class="panel">
+    <h3>Xây chỉ mục</h3>
+    <ol class="steps">
+     <li><b>Chunking theo ký tự:</b> lấy <span class="kw">20 000</span> ký tự đầu mỗi tài liệu làm đại diện —
+      cắt theo ký tự, không tokenize hai lần.</li>
+     <li><b>Vector hoá TF-IDF:</b> <span class="kw">max_features=100k</span>, <span class="kw">sublinear_tf</span>,
+      loại stop-word tiếng Anh → ma trận thưa 7 949 × vocab.</li>
+     <li><b>Truy vấn:</b> tài liệu nghi vấn → vector cùng không gian → <b>cosine</b> với toàn kho → lấy top-k.</li>
+    </ol>
+   </div>
+   <figure class="fig">
+    <svg class="dg" viewBox="0 0 380 250" role="img"
+      aria-label="Vector nghi vấn so cosine với kho 7949 vector nguồn, trả về top-k, nguồn hạng 1 được tô cam">
+     <rect class="box acc" x="14" y="104" width="96" height="42" rx="8"/>
+     <text x="62" y="122" text-anchor="middle" font-size="11.5">vector</text>
+     <text x="62" y="137" text-anchor="middle" font-size="11.5">nghi vấn</text>
+     <!-- index stack -->
+     <text x="250" y="28" text-anchor="middle" font-size="10.5" class="lbl">kho 7 949 vector nguồn</text>
+     <g>
+      <rect class="cell" x="196" y="40" width="150" height="12" rx="2"/>
+      <rect class="cell" x="196" y="58" width="150" height="12" rx="2"/>
+      <rect class="cell" x="196" y="76" width="150" height="12" rx="2"/>
+      <rect class="cell" x="196" y="94" width="150" height="12" rx="2"/>
+      <rect class="cell" x="196" y="112" width="150" height="12" rx="2"/>
+      <rect class="cell" x="196" y="130" width="150" height="12" rx="2"/>
+      <rect class="cell" x="196" y="148" width="150" height="12" rx="2"/>
+     </g>
+     <line class="flow" x1="112" y1="125" x2="190" y2="100" marker-end="url(#ar)"/>
+     <text x="150" y="104" text-anchor="middle" font-size="9.5" class="lbl">cosine</text>
+     <!-- top-k out -->
+     <text x="250" y="188" text-anchor="middle" font-size="10.5" class="lbl">top-k xếp hạng</text>
+     <rect x="196" y="198" width="150" height="15" rx="3" fill="var(--pl)"/>
+     <text x="271" y="210" text-anchor="middle" font-size="10" fill="#fff" font-family="var(--mono)">#1 · nguồn khớp nhất</text>
+     <rect class="cell" x="196" y="220" width="150" height="13" rx="3"/>
+     <text x="271" y="230" text-anchor="middle" font-size="9.5" class="lbl">#2 … #k</text>
+    </svg>
+    <figcaption>Retrieval = một phép nhân ma trận thưa: vector nghi vấn × chỉ mục → xếp hạng cosine.</figcaption>
+   </figure>
+  </div>
+
+  <p style="margin-top:22px">Vì sao <b>TF-IDF thắng neural</b>? Đạo văn trong PAN có độ trùng lặp từ vựng cao;
+   tín hiệu lexical bắt trực tiếp cụm từ dùng chung, trong khi embedding (bge-small) làm mờ khác biệt giữa
+   các tài liệu <em>cùng chủ đề khoa học</em>. Top-1 của TF-IDF gần như luôn đúng nguồn.</p>
+
+  <div class="panel" style="margin-top:16px">
+   <h3>Kết quả retrieval — val 5 522 susp</h3>
+   <div class="chart">
+    <div class="bar"><div class="bl">TF-IDF <span class="cfg">chính thức</span></div>
+     <div class="track"><div class="fill best" style="width:97.5%"><span class="v">0.975</span></div></div></div>
+    <div class="bar"><div class="bl">Neural <span class="cfg">bge-small</span></div>
+     <div class="track"><div class="fill" style="width:90.8%"><span class="v">0.908</span></div></div></div>
+    <div class="axis"><span>Recall@1 · 0</span><span>1.0</span></div>
+   </div>
+   <table style="margin-top:12px">
+    <thead><tr><th>Phương pháp</th><th>R@1</th><th>R@5</th><th>R@10</th><th>MRR</th></tr></thead>
+    <tbody>
+     <tr><td>TF-IDF</td><td class="n">0.975</td><td class="n">0.994</td><td class="n">0.995</td><td class="n">0.985</td></tr>
+     <tr><td>Neural (bge-small)</td><td class="n">0.908</td><td class="n">0.965</td><td class="n">0.975</td><td class="n">0.934</td></tr>
+    </tbody>
+   </table>
+  </div>
+ </section>
+
+ <!-- ===================== PHẦN 3 ===================== -->
+ <section id="p3">
+  <div class="part"><span class="pnum">3</span><h2>Alignment — đối chiếu từng đoạn</h2></div>
+  <p class="sub">Retrieval chỉ nói <em>tài liệu nào</em> khả nghi. Alignment mới xác định <em>đoạn nào</em> —
+   theo phương pháp <b>seed-and-extend</b> của Sánchez-Pérez (thắng PAN 2014). Toàn bộ chạy CPU,
+   không cần GPU hay mô hình học sâu.</p>
+
+  <div class="io">
+   <div class="task"><b>Bài toán</b>Trong một cặp (tài liệu nghi vấn, nguồn ứng viên), xác định chính xác
+    đoạn nào bị đạo và nó tương ứng với đoạn nào trong nguồn.</div>
+   <div class="ioflow">
+    <span class="chip in"><span class="t">Input</span>cặp (tài liệu nghi vấn, 1 nguồn ứng viên)</span>
+    <span class="arr">→</span>
+    <span class="chip out"><span class="t">Output</span>danh sách (span nghi vấn, span nguồn)</span>
+   </div>
+  </div>
+
+  <div class="grid2">
+   <div class="panel">
+    <h3>Cơ chế</h3>
+    <ol class="steps">
+     <li><b>Cắt câu giữ offset:</b> tile toàn tài liệu, mỗi câu biết chính xác vị trí ký tự.</li>
+     <li><b>Vector tf-isf + Dice:</b> mỗi câu thành vector tf-isf; tính ma trận cosine và Dice giữa mọi cặp câu (nghi vấn × nguồn).</li>
+     <li><b>Gieo hạt (seed):</b> cặp câu là hạt khi <span class="kw">cos ≥ θ₁</span> <b>và</b> <span class="kw">Dice ≥ θ₂</span> — hai điều kiện cùng lúc.</li>
+     <li><b>Cụm hai chiều:</b> gộp các hạt liền mạch cả theo câu nghi vấn lẫn câu nguồn (ràng buộc đường chéo) → một "case".</li>
+     <li><b>Mở rộng &amp; lọc:</b> giữ case có similarity ≥ θ₃, dài ≥ 150 ký tự; khử chồng lấn → trả <b>span nghi vấn + span nguồn</b>.</li>
+    </ol>
+   </div>
+   <figure class="fig">
+    <svg class="dg" viewBox="0 0 380 300" role="img"
+      aria-label="Lưới câu nghi vấn theo câu nguồn; các hạt seed nằm trên đường chéo được gộp thành một case đóng khung cam">
+     <text x="200" y="16" text-anchor="middle" font-size="10.5" class="lbl">câu nguồn →</text>
+     <text x="14" y="150" font-size="10.5" class="lbl" transform="rotate(-90 14 150)" text-anchor="middle">câu nghi vấn →</text>
+     <!-- grid 8 cols x 8 rows -->
+     <g id="grid"></g>
+     <!-- draw cells + seeds + case manually -->
+     <!-- cells -->
+     <g>
+      <!-- generate a light grid -->
+     </g>
+     <!-- We hand-place: cell size 30, origin x=40 y=28 -->
+     <!-- faint grid -->
+     <g stroke="var(--line)" fill="var(--surface-2)">
+      <!-- row backgrounds -->
+     </g>
+     <!-- Build grid with rects -->
+     <g>
+      <!-- 8x8 cells -->
+      <!-- programmatically hard to inline; place key ones -->
+     </g>
+     <!-- Simplified: draw grid lines -->
+     <g stroke="var(--line)" stroke-width="1">
+      <line x1="40" y1="28" x2="280" y2="28"/><line x1="40" y1="58" x2="280" y2="58"/>
+      <line x1="40" y1="88" x2="280" y2="88"/><line x1="40" y1="118" x2="280" y2="118"/>
+      <line x1="40" y1="148" x2="280" y2="148"/><line x1="40" y1="178" x2="280" y2="178"/>
+      <line x1="40" y1="208" x2="280" y2="208"/><line x1="40" y1="238" x2="280" y2="238"/>
+      <line x1="40" y1="28" x2="40" y2="238"/><line x1="70" y1="28" x2="70" y2="238"/>
+      <line x1="100" y1="28" x2="100" y2="238"/><line x1="130" y1="28" x2="130" y2="238"/>
+      <line x1="160" y1="28" x2="160" y2="238"/><line x1="190" y1="28" x2="190" y2="238"/>
+      <line x1="220" y1="28" x2="220" y2="238"/><line x1="250" y1="28" x2="250" y2="238"/>
+      <line x1="280" y1="28" x2="280" y2="238"/>
+     </g>
+     <!-- noise seeds -->
+     <circle class="seed" cx="115" cy="43" r="4.5" opacity=".38"/>
+     <circle class="seed" cx="235" cy="193" r="4.5" opacity=".38"/>
+     <!-- diagonal cluster seeds -->
+     <circle class="seed" cx="115" cy="103" r="5.5"/>
+     <circle class="seed" cx="145" cy="133" r="5.5"/>
+     <circle class="seed" cx="175" cy="163" r="5.5"/>
+     <circle class="seed" cx="205" cy="193" r="5.5"/>
+     <!-- case box around the diagonal cluster -->
+     <rect class="case" x="100" y="88" width="120" height="120" rx="6"/>
+     <text x="160" y="270" text-anchor="middle" font-size="10.5" class="lbl">hạt liền mạch trên đường chéo = 1 đoạn đạo văn</text>
+    </svg>
+    <figcaption><span style="color:var(--accent)">●</span> hạt (cos≥θ và Dice≥θ) ·
+     <span style="color:var(--pl)">▭</span> case = span; hạt nhiễu ngoài đường chéo bị loại.</figcaption>
+   </figure>
+  </div>
+
+  <div class="panel" style="margin-top:20px">
+   <h3>Kết quả detection — PlagDet trên val 5 522 susp</h3>
+   <div class="chart">
+    <div class="bar"><div class="bl">tf-isf <span class="cfg">top-1 · chính thức</span></div>
+     <div class="track"><div class="fill best" style="width:79.2%"><span class="v">0.713</span></div>
+      <div class="refline" style="left:95.3%"><span>trần câu 0.858</span></div></div></div>
+    <div class="bar"><div class="bl">baseline <span class="cfg">gán cả tài liệu</span></div>
+     <div class="track"><div class="fill" style="width:75.0%"><span class="v">0.675</span></div></div></div>
+    <div class="bar"><div class="bl">tf-isf <span class="cfg">top-3</span></div>
+     <div class="track"><div class="fill" style="width:68.9%"><span class="v">0.620</span></div></div></div>
+    <div class="bar"><div class="bl">E5+path <span class="cfg">neural · th 0.78*</span></div>
+     <div class="track"><div class="fill" style="width:73.7%"><span class="v">0.663</span></div></div></div>
+    <div class="bar"><div class="bl">E5+path <span class="cfg">neural · th 0.86*</span></div>
+     <div class="track"><div class="fill" style="width:51.4%"><span class="v">0.463</span></div></div></div>
+    <div class="axis"><span>PlagDet · 0</span><span>0.90</span></div>
+   </div>
+   <p style="font-size:12px;color:var(--ink-3);margin:6px 0 0">* E5+path đo trên subset 1 000 susp (giới hạn GPU); các số còn lại trên full 5 522.</p>
+  </div>
+
+  <p class="callout" style="margin-top:20px"><b>Ba phát hiện.</b>
+   ① <b>top-1 &gt; top-3</b> (0.713 vs 0.620): thêm nguồn distractor phá precision.
+   ② <b>lexical &gt; neural</b>: tf-isf 0.713 vượt xa E5+path — với văn bản trùng lặp từ vựng, semantic embedding thua.
+   ③ Hạ ngưỡng E5 (0.86→0.78) cứu recall, đưa neural lên 0.663 nhưng vẫn chưa chạm baseline lexical.
+   Trần lý thuyết (span khớp biên câu) là 0.858.</p>
+ </section>
+
+ <div class="foot">
+  <span>Retrieval TF-IDF → Alignment tf-isf (seed-and-extend, PAN 2014) → Scoring PlagDet</span>
+  <span>·</span><span>CSC15105 Text Mining · PAN 2025</span>
+ </div>
+</div>
+</body></html>
