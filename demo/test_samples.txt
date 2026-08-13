@@ -1,0 +1,21 @@
+MẪU TEST CHO DEMO PHÁT HIỆN ĐẠO VĂN — PAN 2025
+Cách dùng: copy văn bản GIỮA hai dòng >>> ... <<< của từng mẫu, dán vào ô 'Kiểm tra đạo văn'.
+(Kho nguồn phải là tập validation — nguồn thật: source-document010237.txt)
+==========================================================================================
+
+### MẪU 1 — ĐẠO VĂN NGUYÊN VĂN (copy y nguyên từ nguồn) → điểm CAO, tô cam nhiều
+>>>
+Linear regression models are a fundamental class of supervised learning, with applications in healthcare, business, security, and engineering [1] . Recent works in the literature show that the performance of regression models degrades significantly in the presence of poisoned training data [5] . Through such attacks, adversaries attempt to force the learner to end up with a prediction model with impaired prediction capabilities. Any application that relies on regression models for automated decision making could potentially be compromised and make decisions that could have serious consequences.
+
+For example, as demonstrated by Vrablecová et al. [4] , regression models can be used for forecasting the power load in a smart electrical grid. In such a setting, if an adversary compromises that forecasting system and forces it to predict a lower power demand than the expected power demand for a particular period, the power supplied during that period would be insufficient and may cause blackouts. Conversely, if the adversary forces the forecasting system to predict a higher power demand than the expected demand, there would be surplus power generated that may overload the power distribution system.
+<<<
+
+### MẪU 2 — ĐẠO VĂN PARAPHRASE NHẸ (giữ khung, đổi vài từ) → điểm TRUNG BÌNH
+>>>
+Linear regression models are a fundamental class of supervised learning, with applications across healthcare, business, security, and engineering. Recent works in the literature show that the performance of regression models degrades significantly when poisoned training data is present. Through such attacks, adversaries attempt to force the learner to arrive at a prediction model with impaired prediction capabilities. Any application that relies on regression models for automated decision making could potentially be affected by these poisoning attacks.
+<<<
+
+### MẪU 3 — KHÔNG ĐẠO VĂN (chủ đề khác) → 0.00, không phát hiện
+>>>
+Our weekend hiking group met at dawn beside the old railway bridge, where mist still clung to the river. We shared a thermos of tea, checked the map one last time, and set off along the ridge trail. By noon the clouds had cleared and the whole valley opened beneath us — a quilt of orchards and stone walls stretching to the distant hills. Nobody talked much on the climb; the only sounds were boots on gravel and the occasional call of a hawk overhead.
+<<<
