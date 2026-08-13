@@ -101,6 +101,19 @@ td.n{font-variant-numeric:tabular-nums}
 .io .chip.out{border-color:color-mix(in srgb,var(--pl) 45%,var(--line))}
 .io .chip.out .t{color:var(--pl)}
 .io .arr{color:var(--ink-3);font-size:15px}
+.mgrp{margin-bottom:16px}
+.mdef{padding:13px 0;border-bottom:1px solid var(--line)}
+.mdef:last-child{border:0;padding-bottom:2px}
+.mdef .mh{display:flex;align-items:baseline;gap:10px;flex-wrap:wrap}
+.mdef .mn{font-weight:640;font-size:15px;color:var(--ink)}
+.mdef .mf{font-family:var(--mono);font-size:12px;background:var(--surface-2);border:1px solid var(--line);
+ border-radius:6px;padding:2px 9px;color:var(--ink-2);white-space:nowrap}
+.mdef .rng{font-family:var(--mono);font-size:10px;color:var(--ink-3);margin-left:auto}
+.mdef .md{font-size:13.5px;color:var(--ink-2);margin-top:6px;max-width:none}
+.mdef .md b{color:var(--ink)}
+.mhead{display:flex;align-items:baseline;gap:14px;margin:0 0 8px}
+.mhead h2{font-family:var(--serif);font-weight:600;font-size:clamp(23px,3.4vw,30px);margin:0;letter-spacing:-.01em}
+.mhead .ref{font-family:var(--mono);font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--ink-3)}
 /* diagram helpers */
 .dg .box{fill:var(--surface);stroke:var(--ink-3);stroke-width:1.4}
 .dg .box.acc{stroke:var(--accent)}.dg .box.pl{stroke:var(--pl)}.dg .box.good{stroke:var(--good)}
@@ -388,6 +401,78 @@ td.n{font-variant-numeric:tabular-nums}
    ② <b>lexical &gt; neural</b>: tf-isf 0.713 vượt xa E5+path — với văn bản trùng lặp từ vựng, semantic embedding thua.
    ③ Hạ ngưỡng E5 (0.86→0.78) cứu recall, đưa neural lên 0.663 nhưng vẫn chưa chạm baseline lexical.
    Trần lý thuyết (span khớp biên câu) là 0.858.</p>
+ </section>
+
+ <!-- ===================== THƯỚC ĐO ===================== -->
+ <section id="metrics">
+  <div class="mhead"><span class="ref">Tham khảo</span><h2>Thước đo</h2></div>
+  <p class="sub">Mỗi tầng dùng thước đo riêng — retrieval đo "có tìm đúng nguồn không",
+   detection đo "có khoanh đúng đoạn không". Dưới đây là định nghĩa, công thức và cách đọc.</p>
+
+  <div class="panel mgrp">
+   <h3>Retrieval — tìm đúng tài liệu nguồn</h3>
+   <div class="mdef">
+    <div class="mh"><span class="mn">Recall@k</span>
+     <span class="mf">R@k = (#susp có nguồn thật trong top-k) / (#susp)</span>
+     <span class="rng">0 → 1, cao = tốt</span></div>
+    <div class="md">Tỉ lệ tài liệu nghi vấn mà <b>nguồn thật nằm trong k ứng viên</b> retrieval trả về.
+     <b>R@1 = 0.975</b> nghĩa là 97.5% trường hợp nguồn đúng đã đứng ngay hạng 1. Chỉ cần bắt đúng
+     <em>tài liệu</em> (thô); tầng alignment lo phần đoạn.</div>
+   </div>
+   <div class="mdef">
+    <div class="mh"><span class="mn">MRR — Mean Reciprocal Rank</span>
+     <span class="mf">MRR = (1/N) Σ 1/rank(nguồn thật)</span>
+     <span class="rng">0 → 1, cao = tốt</span></div>
+    <div class="md">Trung bình <b>nghịch đảo hạng</b> của nguồn thật. Nguồn thật ở hạng 1 → 1.0; hạng 2 → 0.5.
+     <b>MRR = 0.985</b> ⇒ nguồn đúng gần như luôn ở đỉnh danh sách.</div>
+   </div>
+  </div>
+
+  <div class="panel mgrp">
+   <h3>Detection — PlagDet (PAN 2015), mức ký tự</h3>
+   <p style="font-size:13px;color:var(--ink-2);margin:0 0 10px">Chấm ở <b>mức ký tự</b>: mỗi "đoạn" là một
+    khoảng ký tự trong tài liệu nghi vấn. R = tập đoạn đạo văn <em>thật</em> (gold), S = tập đoạn hệ <em>phát hiện</em>.</p>
+   <div class="mdef">
+    <div class="mh"><span class="mn">Precision (P)</span>
+     <span class="mf">P = (1/|S|) Σ<sub>s∈S</sub> |s ∩ (⋃R)| / |s|</span>
+     <span class="rng">0 → 1</span></div>
+    <div class="md">Trong các ký tự hệ <b>gắn cờ</b> đạo văn, bao nhiêu % thật sự thuộc đoạn đạo gold.
+     P thấp = báo giả nhiều (khoanh cả phần không đạo).</div>
+   </div>
+   <div class="mdef">
+    <div class="mh"><span class="mn">Recall (R)</span>
+     <span class="mf">R = (1/|R|) Σ<sub>r∈R</sub> |r ∩ (⋃S)| / |r|</span>
+     <span class="rng">0 → 1</span></div>
+    <div class="md">Trong các ký tự đạo văn <b>thật</b>, bao nhiêu % được hệ phát hiện.
+     R thấp = bỏ sót (đoạn paraphrase nặng thường lọt).</div>
+   </div>
+   <div class="mdef">
+    <div class="mh"><span class="mn">Granularity</span>
+     <span class="mf">gran = (1/|R_det|) Σ #đoạn-S phủ mỗi đoạn-R</span>
+     <span class="rng">≥ 1, gần 1 = tốt</span></div>
+    <div class="md">Trung bình số đoạn dự đoán phủ <b>một</b> đoạn thật. <b>1 = lý tưởng</b> (mỗi đoạn đạo được
+     khoanh gọn bằng đúng 1 span); &gt;1 = phát hiện bị <b>phân mảnh</b> (một đoạn bị cắt vụn), bị phạt.</div>
+   </div>
+   <div class="mdef">
+    <div class="mh"><span class="mn">PlagDet</span>
+     <span class="mf">PlagDet = F1 / log₂(1 + granularity),  F1 = 2·P·R/(P+R)</span>
+     <span class="rng">0 → 1, thước đo chính</span></div>
+    <div class="md"><b>Thước đo chính thức của PAN 2015.</b> Cân bằng P và R bằng F1, rồi <b>chia cho hình phạt
+     phân mảnh</b>. Muốn PlagDet cao phải đồng thời: khoanh đúng (P), không sót (R), và gọn (granularity≈1).
+     Kết quả của hệ: <b>0.713</b>.</div>
+   </div>
+   <div class="mdef">
+    <div class="mh"><span class="mn">Trần câu (ceiling)</span>
+     <span class="mf">= PlagDet tối đa khi span chỉ khớp tới biên câu</span>
+     <span class="rng">= 0.858</span></div>
+    <div class="md">Vì hệ khoanh theo <b>ranh giới câu</b> (không tới từng ký tự), PlagDet tối đa lý thuyết chỉ
+     đạt <b>0.858</b> chứ không phải 1.0. Đây là mốc so sánh đúng nghĩa: 0.713 / 0.858 ≈ <b>83% của trần</b>.</div>
+   </div>
+  </div>
+
+  <p class="callout"><b>Vì sao tách thước đo?</b> Một điểm gộp duy nhất sẽ che điểm yếu.
+   Recall@k cho biết retrieval có đưa đúng nguồn không; nếu retrieval trượt thì PlagDet thấp <em>không phải</em>
+   lỗi alignment. Tách ra để biết <b>khâu nào cần cải thiện</b>.</p>
  </section>
 
  <div class="foot">
