@@ -134,12 +134,14 @@ td.n{font-variant-numeric:tabular-nums}
 
 <div class="wrap">
  <header class="hero">
-  <p class="eyebrow">Phát hiện · Đối chiếu · Viết lại</p>
+  <p class="eyebrow">Truy hồi · Đối chiếu · Sinh grounded</p>
   <h1>Kiến trúc phát hiện đạo văn</h1>
-  <p class="lede">Một pipeline <b>RAG ba tầng</b> trên corpus khoa học arXiv của PAN 2025:
-   truy hồi nguồn khả nghi bằng TF-IDF, đối chiếu từng đoạn bằng thuật toán
-   <b>seed-and-extend</b>, rồi viết lại để khử đạo văn. Báo cáo này mổ xẻ ba tầng đầu —
-   kiến trúc, không gian tìm kiếm, và cơ chế đối chiếu — kèm kết quả đo trên tập validation.</p>
+  <p class="lede">Một pipeline <b>RAG</b> trên corpus khoa học arXiv của PAN 2025:
+   <b>truy hồi</b> nguồn khả nghi bằng TF-IDF, <b>đối chiếu</b> từng đoạn bằng
+   <b>seed-and-extend</b>, một <b>verifier LLM</b> lọc báo giả, rồi <b>sinh bản luận giải
+   grounded</b> (kỹ thuật · giải thích · đề xuất viết lại) bám vào đúng đoạn nguồn truy hồi.
+   Báo cáo mổ xẻ từng khâu — kiến trúc, không gian tìm kiếm, đối chiếu, verifier và bước sinh —
+   kèm kết quả đo trên tập validation.</p>
 
   <figure class="fig" style="margin-top:30px">
    <svg class="dg" viewBox="0 0 920 210" role="img"
@@ -160,8 +162,8 @@ td.n{font-variant-numeric:tabular-nums}
     <text x="518" y="112" text-anchor="middle" font-size="11.5" class="lbl">tf-isf seed-extend</text>
     <!-- generation -->
     <rect class="box good" x="674" y="66" width="150" height="70" rx="9"/>
-    <text x="749" y="92" text-anchor="middle" font-size="14" font-weight="600">LLM roles</text>
-    <text x="749" y="112" text-anchor="middle" font-size="11.5" class="lbl">verify · viết lại</text>
+    <text x="749" y="92" text-anchor="middle" font-size="14" font-weight="600">Generation</text>
+    <text x="749" y="112" text-anchor="middle" font-size="11.5" class="lbl">verify → luận giải (GLM)</text>
     <!-- corpus -->
     <rect class="box" x="212" y="168" width="150" height="34" rx="7"/>
     <text x="287" y="190" text-anchor="middle" font-size="12" class="lbl">Kho nguồn · 7 949 tài liệu</text>
@@ -173,7 +175,7 @@ td.n{font-variant-numeric:tabular-nums}
     <text x="399" y="58" text-anchor="middle" font-size="10.5" class="lbl">top-k nguồn</text>
     <text x="633" y="58" text-anchor="middle" font-size="10.5" class="lbl">span (nghi vấn ↔ nguồn)</text>
    </svg>
-   <figcaption>Dòng dữ liệu end-to-end. Kho nguồn được đánh chỉ mục một lần; mỗi tài liệu nghi vấn đi qua ba tầng.</figcaption>
+   <figcaption>Dòng dữ liệu end-to-end. Kho nguồn được đánh chỉ mục một lần; mỗi tài liệu nghi vấn đi qua các tầng.</figcaption>
   </figure>
  </header>
 
@@ -190,7 +192,7 @@ td.n{font-variant-numeric:tabular-nums}
    <div class="ioflow">
     <span class="chip in"><span class="t">Input</span>tài liệu nghi vấn (.txt) + kho 7 949 nguồn</span>
     <span class="arr">→</span>
-    <span class="chip out"><span class="t">Output</span>span (offset, length, nguồn) + bản viết lại</span>
+    <span class="chip out"><span class="t">Output</span>span (offset, length, nguồn) + luận giải grounded</span>
    </div>
   </div>
 
@@ -210,7 +212,8 @@ td.n{font-variant-numeric:tabular-nums}
     <tr><td><b>Retrieval</b></td><td>tài liệu nghi vấn</td><td>top-k nguồn khả nghi</td><td>TF-IDF + cosine</td></tr>
     <tr><td><b>Alignment</b></td><td>cặp (nghi vấn, nguồn)</td><td>span đạo văn + span nguồn</td><td>tf-isf seed-and-extend</td></tr>
     <tr><td><b>Scoring</b></td><td>span dự đoán vs gold</td><td>PlagDet / P / R</td><td>PAN 2015 char-level</td></tr>
-    <tr><td><b>Generation</b></td><td>cặp đoạn (nghi vấn, nguồn)</td><td>đoạn viết lại khử đạo</td><td>Gemini (reverse RAG)</td></tr>
+    <tr><td><b>Verifier</b></td><td>span đã gắn cờ</td><td>GIỮ / BỎ (lọc báo giả)</td><td>LLM verifier (GLM-5.2)</td></tr>
+    <tr><td><b>Generation</b></td><td>span + đoạn nguồn truy hồi</td><td>luận giải grounded (kỹ thuật · giải thích · viết lại)</td><td>GLM-5.2 (retrieval-augmented)</td></tr>
    </tbody>
   </table>
   <p class="callout">Tách tầng cho phép <b>đánh giá độc lập</b> từng khâu: retrieval đo bằng Recall@k,
@@ -433,12 +436,107 @@ td.n{font-variant-numeric:tabular-nums}
     </tbody>
    </table>
    <p style="font-size:12px;color:var(--ink-3);margin:8px 0 0">Nhãn TP/FP suy từ <b>gold PAN</b> (khách quan).
-    Call lỗi → mặc định GIỮ (an toàn) ⇒ model nhiều lỗi (Llama 71, gpt-oss-20b 62) khử FP kém.</p>
+    Call lỗi → mặc định GIỮ (an toàn) ⇒ model nhiều lỗi (Llama 71, gpt-oss-20b 62) khử FP kém.
+    Nền 0.715 đo trên <b>subset N=1000</b> nên khác 0.713 của full-val 5 522.
+    Nguồn: kernel Kaggle <span class="kw">whaleeatu/k8-model-compare</span>, N=1000, 2026-08-13, runtime 8 019 s
+    (artifact <span class="kw">model_compare.result.json</span>).</p>
   </div>
 
   <p class="callout" style="margin-top:16px"><b>GLM-5.2 thắng rõ:</b> PlagDet 0.715 → <b>0.759</b> (+0.044),
    precision 0.726 → <b>0.831</b>, bỏ 71% báo giả mà vẫn giữ 96.5% phát hiện thật (0 lỗi). Cả 6 model (trừ Llama)
    đều tăng PlagDet — verifier là bước rẻ, đáng thêm vào pipeline để nâng precision.</p>
+ </section>
+
+ <!-- ===================== PHẦN 5 ===================== -->
+ <section id="p5">
+  <div class="part"><span class="pnum">5</span><h2>Generation — luận giải grounded (vòng RAG)</h2></div>
+  <p class="sub">Đây là chữ <b>G</b> của RAG. Sau khi verifier giữ lại span thật, một LLM
+   <b>sinh bản luận giải</b> bám hoàn toàn vào bằng chứng truy hồi: kỹ thuật đạo, giải thích,
+   mức độ, và đề xuất viết lại khử đạo. Không bịa — mọi câu chữ neo vào đoạn nghi vấn và đoạn nguồn.</p>
+
+  <div class="io">
+   <div class="task"><b>Bài toán</b>Với một span đã xác minh, sinh lời luận giải cho người dùng —
+    nêu nguồn, kỹ thuật, bằng chứng, và cách viết lại — grounded vào đoạn nguồn do retrieval trả về.</div>
+   <div class="ioflow">
+    <span class="chip in"><span class="t">Input</span>span (đoạn nghi vấn) + đoạn nguồn truy hồi</span>
+    <span class="arr">→</span>
+    <span class="chip out"><span class="t">Output</span>{kỹ thuật · giải thích · mức độ · viết lại}</span>
+   </div>
+  </div>
+
+  <figure class="fig" style="margin-bottom:22px">
+   <svg class="dg" viewBox="0 0 920 232" role="img"
+     aria-label="Vòng RAG: tài liệu người dùng qua Retrieval lấy đoạn nguồn, bơm vào prompt cùng span, LLM sinh luận giải grounded">
+    <defs><marker id="ar2" markerWidth="9" markerHeight="9" refX="7" refY="3" orient="auto">
+      <path d="M0,0 L7,3 L0,6 Z" fill="var(--ink-3)"/></marker>
+     <marker id="ar2p" markerWidth="9" markerHeight="9" refX="7" refY="3" orient="auto">
+      <path d="M0,0 L7,3 L0,6 Z" fill="var(--pl)"/></marker></defs>
+    <!-- query -->
+    <rect class="box" x="14" y="86" width="120" height="60" rx="9"/>
+    <text x="74" y="110" text-anchor="middle" font-size="12" font-weight="600">Tài liệu</text>
+    <text x="74" y="127" text-anchor="middle" font-size="11" class="lbl">query (text/.txt)</text>
+    <!-- retrieval -->
+    <rect class="box acc" x="180" y="86" width="126" height="60" rx="9"/>
+    <text x="243" y="110" text-anchor="middle" font-size="13" font-weight="600">Retrieval</text>
+    <text x="243" y="128" text-anchor="middle" font-size="10.5" class="lbl">TF-IDF top-k</text>
+    <!-- corpus -->
+    <rect class="box" x="180" y="180" width="126" height="30" rx="7"/>
+    <text x="243" y="200" text-anchor="middle" font-size="10.5" class="lbl">kho nguồn</text>
+    <!-- prompt (augmented) -->
+    <rect class="box good" x="360" y="70" width="180" height="92" rx="9"/>
+    <text x="450" y="94" text-anchor="middle" font-size="12.5" font-weight="600">Prompt (augmented)</text>
+    <text x="450" y="114" text-anchor="middle" font-size="10.5" class="lbl">template + span</text>
+    <text x="450" y="130" text-anchor="middle" font-size="10.5" class="lbl" style="fill:var(--pl)">+ đoạn nguồn truy hồi</text>
+    <text x="450" y="149" text-anchor="middle" font-size="9.5" class="lbl">(hệ tự dựng — không do người gõ)</text>
+    <!-- LLM -->
+    <rect class="box pl" x="596" y="86" width="120" height="60" rx="9"/>
+    <text x="656" y="110" text-anchor="middle" font-size="13" font-weight="600">LLM</text>
+    <text x="656" y="128" text-anchor="middle" font-size="10.5" class="lbl">GLM-5.2</text>
+    <!-- output -->
+    <rect class="box good" x="770" y="80" width="138" height="72" rx="9"/>
+    <text x="839" y="104" text-anchor="middle" font-size="12.5" font-weight="600">Luận giải</text>
+    <text x="839" y="121" text-anchor="middle" font-size="10.5" class="lbl">grounded</text>
+    <text x="839" y="137" text-anchor="middle" font-size="9.5" class="lbl">kỹ thuật·giải thích·viết lại</text>
+    <!-- arrows -->
+    <line class="flow" x1="134" y1="116" x2="174" y2="116" marker-end="url(#ar2)"/>
+    <line class="flow" x1="243" y1="180" x2="243" y2="148" marker-end="url(#ar2)"/>
+    <!-- augment edge highlighted -->
+    <line x1="306" y1="116" x2="354" y2="116" stroke="var(--pl)" stroke-width="2.4" fill="none" marker-end="url(#ar2p)"/>
+    <text x="330" y="106" text-anchor="middle" font-size="9.5" class="lbl" style="fill:var(--pl)">augment</text>
+    <line class="flow" x1="540" y1="116" x2="592" y2="116" marker-end="url(#ar2)"/>
+    <line class="flow" x1="716" y1="116" x2="766" y2="116" marker-end="url(#ar2)"/>
+   </svg>
+   <figcaption>Vòng RAG: <b>query</b> = tài liệu người dùng nộp; Retrieval lấy đoạn nguồn,
+    <span style="color:var(--pl)">bơm vào prompt</span> (augment) cùng span từ alignment; LLM <b>sinh</b> luận giải grounded.</figcaption>
+  </figure>
+
+  <div class="grid2">
+   <div class="panel">
+    <h3>Vì sao đúng là RAG</h3>
+    <ol class="steps">
+     <li><b>Query = tài liệu</b>, không phải câu hỏi gõ tay: người dùng nộp văn bản (dán/​.txt).</li>
+     <li><b>Retrieve:</b> TF-IDF lấy đúng đoạn nguồn từ kho — bằng chứng, không phải người dùng cung cấp.</li>
+     <li><b>Augment:</b> hệ tự chèn đoạn nguồn truy hồi vào prompt cố định (cùng span) — đây là mắt xích "A".</li>
+     <li><b>Generate:</b> LLM sinh luận giải neo vào ngữ cảnh đó → không bịa ngoài bằng chứng.</li>
+    </ol>
+   </div>
+   <div class="panel">
+    <h3>Đo bước sinh (thành phần viết lại)</h3>
+    <div class="facts">
+     <div><div class="v">0.176→0.147</div><div class="l">char-ratio bị-phát-hiện ↓</div></div>
+     <div><div class="v">0.955</div><div class="l">fidelity (giữ nghĩa)</div></div>
+     <div><div class="v">0.139→0.100</div><div class="l">overlap từ vựng ↓</div></div>
+    </div>
+    <p style="font-size:12px;color:var(--ink-3);margin:8px 0 0">Đo trên <b>2 span / 1 tài liệu sạch</b>
+     (Gemini, trước khi chuyển GLM) — giới hạn quota-ngày. Luận giải hợp nhất phân loại + viết lại là
+     <b>bổ sung kiến trúc mới</b>, mới đánh giá ở mức mẫu nhỏ; chưa chạy full-val.</p>
+   </div>
+  </div>
+
+  <p class="callout" style="margin-top:18px"><b>Trung thực về phạm vi.</b> Bước sinh giảm được cả
+   char-ratio bị-phát-hiện lẫn overlap từ vựng mà vẫn giữ ~95% nghĩa — nhưng mẫu còn nhỏ do quota.
+   Đây là <em>hướng đóng vòng RAG</em> đã chạy được đầu-cuối trong demo (GLM-5.2), không phải kết quả
+   quy mô lớn. Lõi đóng góp đo đầy đủ vẫn là retrieval + alignment + verifier.</p>
  </section>
 
  <!-- ===================== THƯỚC ĐO ===================== -->
@@ -532,7 +630,8 @@ td.n{font-variant-numeric:tabular-nums}
  </section>
 
  <div class="foot">
-  <span>Retrieval TF-IDF → Alignment tf-isf (seed-and-extend, PAN 2014) → Scoring PlagDet</span>
+  <span>Retrieval TF-IDF → Alignment tf-isf (seed-and-extend) → Scoring PlagDet → Verifier LLM → Generation grounded (RAG)</span>
+  <span>·</span><span>Tham khảo: Sánchez-Pérez (PAN 2014); Potthast, PlagDet (PAN 2015)</span>
   <span>·</span><span>CSC15105 Text Mining · PAN 2025</span>
  </div>
 </div>

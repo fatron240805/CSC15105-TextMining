@@ -75,15 +75,30 @@ def _get_client():
 
 
 def rewrite_passage(suspicious: str, source: str, *, model: str = None,
-                    temperature: float = 0.7) -> dict:
-    """Viết lại đoạn nghi vấn để khử đạo văn. Trả {"rewritten", "changes"}."""
+                    temperature: float = 0.7, provider: str = None) -> dict:
+    """Viết lại đoạn nghi vấn để khử đạo văn. Trả {"rewritten", "changes"}.
+
+    provider: 'gemini' (mặc định — client riêng) hoặc 'fpt' (đi qua generate_json chung,
+    dùng GLM-5.2 / model FPT). Nếu None → đọc env LLM_PROVIDER.
+    """
     import time
-    from google.genai import types
-    client = _get_client()
     prompt = (
         f"SOURCE passage (do NOT reuse its wording):\n\"\"\"\n{source.strip()}\n\"\"\"\n\n"
         f"SUSPICIOUS passage (rewrite THIS):\n\"\"\"\n{suspicious.strip()}\n\"\"\"\n"
     )
+    prov = (provider or os.environ.get("LLM_PROVIDER", "gemini")).lower()
+    if prov == "fpt":                              # nhánh FPT — dùng client OpenAI-compat chung
+        from generation._gemini import generate_json
+        mdl = model or os.environ.get("LLM_MODEL")
+        data = generate_json(prompt, system=_SYSTEM, model=mdl,
+                             temperature=temperature, provider="fpt")
+        rewritten = str(data.get("rewritten", "")).strip()
+        changes = str(data.get("changes", "")).strip()
+        if not rewritten:
+            raise RuntimeError(f"FPT ({mdl}) không trả về nội dung viết lại.")
+        return {"rewritten": rewritten, "changes": changes, "model": mdl}
+    from google.genai import types
+    client = _get_client()
     cfg = types.GenerateContentConfig(system_instruction=_SYSTEM, temperature=temperature,
                                       response_mime_type="application/json")
     last = None

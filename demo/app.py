@@ -152,6 +152,11 @@ ul{list-style:none;margin:0;padding:0}.cases li{border-bottom:1px solid var(--li
 .rwbtn.vf:hover{background:var(--surface-2)}
 .mfoot{flex-wrap:wrap}
 .mcol.cl .lab{color:var(--accent)} .mcol.vf .lab{color:var(--ink-2)}
+.rwbtn.ex{background:var(--good);border-color:var(--good);color:#fff;font-weight:620}
+.rwbtn.ex:hover{filter:brightness(1.07);background:var(--good)}
+.mcol.ex .lab{color:var(--good)}
+.exrow{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:2px}
+.rwp{background:color-mix(in srgb,var(--good) 9%,transparent);border-radius:6px;padding:10px 12px}
 .tag{display:inline-block;font-family:var(--mono);font-size:13px;font-weight:600;color:var(--accent);
  background:var(--accent-soft);border:1px solid color-mix(in srgb,var(--accent) 40%,var(--line));
  border-radius:999px;padding:4px 13px;margin-bottom:8px}
@@ -229,10 +234,11 @@ function openM(i){var c=window._C[i],t=window._T;if(!c)return;
   +'<div class="mcol src"><div class="lab">Nguồn — đạo từ đây</div><div class="meta"><code>'+esc(c.source)+'</code> · ký tự '+c.src_start+'–'+(c.src_start+c.src_len)+'</div><div class="passage">'+esc(c.src_text||'(không có văn bản nguồn)')+'</div></div>'
   +'</div>'
   +'<div class="mfoot">'
+   +'<button class="rwbtn ex" id="exbtn" onclick="explainCase()">◆ Luận giải (RAG)</button>'
    +'<button class="rwbtn cl" id="clbtn" onclick="classifyCase()">◈ Phân loại kỹ thuật</button>'
    +'<button class="rwbtn vf" id="vfbtn" onclick="verifyCase()">✓ Xác minh (AI)</button>'
    +'<button class="rwbtn" id="rwbtn" onclick="rewriteCase()">✎ Viết lại</button>'
-   +'<span class="rwnote" id="rwnote">Gemini: phân loại kiểu đạo · xác minh khử báo giả · viết lại khử đạo.</span></div>'
+   +'<span class="rwnote" id="rwnote">__LLM__ · Luận giải = sinh grounded (kỹ thuật · giải thích · mức độ · viết lại) từ nguồn truy hồi.</span></div>'
   +'<div class="mrw" id="mrw"></div></div>';
  mo.classList.add('open');
 }
@@ -244,7 +250,7 @@ function rewriteCase(){var d=window._RW;if(!d)return;
    btn.disabled=false;
    if(j.error){note.textContent='Lỗi: '+j.error;return}
    note.textContent=j.changes||'';
-   out.innerHTML='<div class="mcol rw"><div class="lab">Bản viết lại (Gemini · '+esc(j.model||'')+')</div><div class="passage">'+esc(j.rewritten)+'</div></div>';
+   out.innerHTML='<div class="mcol rw"><div class="lab">Bản viết lại ('+esc(j.model||'AI')+')</div><div class="passage">'+esc(j.rewritten)+'</div></div>';
   }).catch(function(e){btn.disabled=false;note.textContent='Lỗi: '+e});
 }
 function classifyCase(){var d=window._RW;if(!d)return;
@@ -272,6 +278,22 @@ function verifyCase(){var d=window._RW;if(!d)return;
     +'<div class="rtext">'+esc(j.reason||'')+'</div></div>';
   }).catch(function(e){btn.disabled=false;note.textContent='Lỗi: '+e});
 }
+function explainCase(){var d=window._RW;if(!d)return;
+ var btn=document.getElementById('exbtn'),note=document.getElementById('rwnote'),out=document.getElementById('mrw');
+ btn.disabled=true;note.textContent='Đang sinh luận giải grounded từ nguồn truy hồi…';out.innerHTML='';
+ fetch('/explain',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(d)})
+  .then(function(r){return r.json()}).then(function(j){btn.disabled=false;
+   if(j.error){note.textContent='Lỗi: '+j.error;return}
+   note.textContent=j.confidence!=null?'độ tin cậy '+Math.round(j.confidence*100)+'%':'';
+   var sv=(j.severity||'').toLowerCase(),svc=sv==='cao'?'high':sv==='thấp'?'low':'med';
+   out.innerHTML='<div class="mcol ex"><div class="lab">Luận giải đạo văn — sinh grounded (RAG)</div>'
+    +'<div class="exrow"><span class="tag">'+esc(j.technique_vi||j.technique||'—')+'</span>'
+    +'<span class="sev '+svc+'">mức độ: '+esc(j.severity||'—')+'</span></div>'
+    +'<div class="rtext" style="margin:8px 0 12px">'+esc(j.explanation||'')+'</div>'
+    +'<div class="lab" style="color:var(--good)">Đề xuất viết lại khử đạo</div>'
+    +'<div class="passage rwp">'+esc(j.suggested_rewrite||'(không có)')+'</div></div>';
+  }).catch(function(e){btn.disabled=false;note.textContent='Lỗi: '+e});
+}
 function closeM(){document.getElementById('modal').classList.remove('open')}
 document.addEventListener('keydown',function(e){if(e.key==='Escape')closeM()});
 </script></body></html>"""
@@ -293,7 +315,7 @@ def make_handler(detector, page):
                 self._send(404, b"not found", "text/plain")
 
         def do_POST(self):
-            if self.path not in ("/detect", "/rewrite", "/classify", "/verify"):
+            if self.path not in ("/detect", "/rewrite", "/classify", "/verify", "/explain"):
                 self._send(404, b"not found", "text/plain"); return
             n = int(self.headers.get("Content-Length", 0))
             try:
@@ -307,6 +329,9 @@ def make_handler(detector, page):
                 elif self.path == "/classify":          # #1 — phân loại kỹ thuật + giải thích
                     from generation.classify import classify_passage
                     out = classify_passage(su, sr)
+                elif self.path == "/explain":           # bước G (RAG) — luận giải grounded
+                    from generation.explain import explain_passage
+                    out = explain_passage(su, sr)
                 else:                                   # /verify — #3 — xác minh khử FP
                     from generation.verify import verify_pair
                     out = verify_pair(su, sr)
@@ -325,10 +350,26 @@ def main():
                     help="thư mục kho nguồn (.txt)")
     ap.add_argument("--port", type=int, default=8000)
     ap.add_argument("--topk", type=int, default=3)   # align top-3 nguồn: recall cao hơn cho văn bản tùy ý
+    ap.add_argument("--provider", default="fpt", choices=["fpt", "gemini"],
+                    help="LLM cho vai trò classify/verify/rewrite (mặc định fpt = GLM)")
+    ap.add_argument("--llm-model", default="GLM-5.2",
+                    help="tên model LLM (fpt: GLM-5.2 tốt nhất; gemini: bỏ qua)")
     args = ap.parse_args()
 
+    # Chốt provider/model cho tầng generation TRƯỚC khi phục vụ — verify/classify đọc
+    # env LLM_PROVIDER+LLM_MODEL trong generate_json; rewrite đọc cùng env ở nhánh FPT.
+    os.environ["LLM_PROVIDER"] = args.provider
+    if args.provider == "fpt":
+        os.environ["LLM_MODEL"] = args.llm_model
+        llm_label = f"{args.llm_model} (FPT)"
+        if not os.environ.get("LLM_API_KEY"):
+            print("[cảnh báo] provider=fpt nhưng thiếu LLM_API_KEY trong .env — LLM sẽ lỗi.", flush=True)
+    else:
+        llm_label = os.environ.get("GEMINI_MODEL", "gemini-flash-latest")
+    print(f"[llm] provider={args.provider} · model={llm_label}", flush=True)
+
     det = Detector(args.sources, topk=args.topk)
-    page = PAGE.replace("__NSRC__", str(len(det.ids)))
+    page = PAGE.replace("__NSRC__", str(len(det.ids))).replace("__LLM__", llm_label)
     srv = HTTPServer(("127.0.0.1", args.port), make_handler(det, page))
     print(f"\n  ► Mở http://localhost:{args.port}  (kho nguồn: {len(det.ids)} tài liệu)\n"
           f"    Ctrl+C để dừng.", flush=True)
