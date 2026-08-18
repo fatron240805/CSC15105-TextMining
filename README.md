@@ -16,20 +16,37 @@ pip install numpy pandas scikit-learn openai google-genai
 # (tuỳ chọn) aligner neural E5 của Khôi: pip install torch sentence-transformers
 ```
 
-**Dữ liệu.** Các script trỏ tới dataset PAN 2025 giải nén sẵn ở
-`C:/github/PAN2025/...` (sửa hằng `VAL` / `PATHS` đầu mỗi script nếu bạn để nơi khác).
-Cần **nhãn đã parse** `outputs/validation_spans.csv` (gold, để chấm điểm) — sinh từ truth XML bằng:
+### Lấy data đã xử lý (từ Drive — nhanh nhất)
+
+Toàn bộ data đã-xử-lý (labels/spans, embeddings, kết quả eval, báo cáo) được đóng gói sẵn:
+`pan25_processed_data.zip` (~140MB nén / ~1,25GB) — **link nhóm**:
+https://drive.google.com/open?id=1k0zI7lvhG84fwpLTsYT5McvCoJu0Jqg2
+
+```bash
+# 1) Tải & giải nén, rồi copy phần đã xử lý vào đúng chỗ repo:
+#    (gói có cấu trúc pan25_processed/outputs/... , pan25_processed/evaluation/...)
+cp -r pan25_processed/outputs/*       outputs/
+cp -r pan25_processed/evaluation/results     evaluation/
+cp -r pan25_processed/evaluation/generation  evaluation/
+```
+Sau bước này có `outputs/validation_spans.csv` (gold để chấm), embeddings, và các JSON kết quả.
+`outputs/` bị `.gitignore` nên **không có sẵn khi clone** — phải lấy từ gói này (hoặc tự sinh lại, xem dưới).
+
+> **Gói Drive KHÔNG chứa corpus thô** (các file `.txt` susp/src, ~2,4GB).
+> - **Chỉ dựng lại báo cáo** (`build_leaderboard.py`, `build_system_report.py`) → *đủ với gói Drive*, không cần corpus.
+> - **Chạy eval mới** (`run_pipeline.py`, `eval_verifier.py`, …) → còn cần **corpus PAN val** (`susp/` + `src/`):
+>   tải từ Kaggle dataset `pan25-corpus-val` (hoặc bản corpus nhóm đang dùng), đặt vào một thư mục rồi
+>   **sửa hằng `VAL`** đầu các script (`orchestration/run_pipeline.py`, `evaluation/*.py`) trỏ đúng đường dẫn máy bạn.
+
+**Hoặc tự sinh lại gold** từ truth XML (nếu đã có corpus PAN, không cần Drive):
 
 ```bash
 python scripts/parse_labels.py \
-  --truth-dir "C:/github/PAN2025/pan25-generated-plagiarism-detection-validation/02_validation/02_validation_truth" \
-  --docs-dir  "C:/github/PAN2025/pan25-generated-plagiarism-detection-validation/02_validation/02_validation" \
+  --truth-dir "<PAN>/pan25-...-validation/02_validation/02_validation_truth" \
+  --docs-dir  "<PAN>/pan25-...-validation/02_validation/02_validation" \
   --out-jsonl outputs/validation_labels.jsonl \
   --out-csv   outputs/validation_spans.csv
 ```
-
-Bộ data đã-xử-lý (labels/spans + embeddings + eval + báo cáo) cũng có sẵn dạng gói —
-xem `outputs/` hoặc bản đóng gói trên Drive.
 
 **Khoá LLM** (chỉ cần cho Verifier / Generation / Classify). Tạo `.env` ở gốc repo (đã gitignore):
 
@@ -81,6 +98,9 @@ Mẫu test: `demo/test_samples.txt`. (Bỏ `--provider/--llm-model` để mặc 
 ## 3. Evaluation
 
 Mọi script eval đọc gold từ `outputs/validation_spans.csv`; các script gọi LLM cần `.env`.
+**Teammate**: lấy gói Drive (mục 1) trước. Chưa có corpus thô vẫn **dựng lại được báo cáo** bằng
+`build_leaderboard.py` / `build_system_report.py` (đọc JSON/CSV, không cần văn bản gốc);
+muốn **chạy eval mới** thì cần corpus PAN val + sửa `VAL` (mục 1).
 
 | Tầng | Lệnh | Ghi ra |
 |---|---|---|
