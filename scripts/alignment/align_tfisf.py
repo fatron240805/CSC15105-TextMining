@@ -104,8 +104,14 @@ def _cluster(seeds, max_gap):
 
 def align_pair(susp_text: str, src_text: str,
                th1: float = 0.33, th2: float = 0.33, th3: float = 0.34,
-               max_gap: int = 4, min_plag_chars: int = 150) -> list:
-    """Trả list (susp_offset, susp_length) các đoạn đạo văn dự đoán."""
+               max_gap: int = 4, min_plag_chars: int = 150, *,
+               return_sim: bool = False) -> list:
+    """Trả list (susp_offset, susp_length, src_offset, src_length) các đoạn đạo văn dự đoán.
+
+    return_sim=True: thêm phần tử thứ 5 = sim đoạn (điểm alignment đã dùng để lọc th3).
+    Dùng để phân biệt case alignment tự tin (sim >> th3) khỏi case biên (sim ~ th3) —
+    caller downstream (vd. verifier LLM) chỉ nên xét lại case biên, tránh làm lại việc
+    alignment đã quyết định xong."""
     su = _sent_units(susp_text)
     ru = _sent_units(src_text)
     if not su or not ru:
@@ -134,6 +140,7 @@ def align_pair(susp_text: str, src_text: str,
         e = s + l
         if any(not (e <= os or s >= oe) for os, oe in occupied):   # chồng lấn susp
             continue
-        kept.append((s, l, ss, sl)); occupied.append((s, e))
+        kept.append((s, l, ss, sl, sim) if return_sim else (s, l, ss, sl))
+        occupied.append((s, e))
     kept.sort()
-    return kept                                        # [(susp_start, susp_len, src_start, src_len)]
+    return kept                                        # [(susp_start, susp_len, src_start, src_len[, sim])]

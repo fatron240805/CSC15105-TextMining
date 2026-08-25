@@ -1,0 +1,51 @@
+experiment:
+  name: nvidia_rewrite_v1
+  seed: 42
+  manifest: evaluation/generation/manifests/val_15.jsonl
+  max_spans: 15
+  prompt_version: rewrite_v1
+
+data:
+  # Change this path if the PAN validation corpus is stored elsewhere.
+  validation_root: C:/github/PAN2025/pan25-generated-plagiarism-detection-validation/02_validation/02_validation
+  spans_csv: outputs/validation_spans.csv
+
+detector:
+  th: 0.30
+  th3: 0.50
+  max_gap: 4
+  min_plag_chars: 150
+
+rewrite:
+  temperature: 0.2
+  top_p: 0.9
+  max_tokens: 1200
+  request_interval_sec: 3
+  max_retries: 6
+  retry_max_wait_sec: 120
+
+judge:
+  enabled: true
+  provider: gemini
+  model: ${GEMINI_JUDGE_MODEL}
+  prompt_version: judge_v1
+  temperature: 0
+  request_interval_sec: 6
+  max_retries: 5
+
+storage:
+  runs_dir: evaluation/generation/runs
+  experiment_file: evaluation/generation/experiments.jsonl
+
+# The runner validates each ID against NVIDIA /v1/models before spending quota.
+# Remove or replace unavailable model IDs after running `models`.
+models:
+  - provider: nvidia
+    model: meta/llama-3.1-8b-instruct
+    api_key_env: NVIDIA_API_KEY
+  - provider: nvidia
+    model: mistralai/mistral-small-24b-instruct-2501
+    api_key_env: NVIDIA_API_KEY
+  - provider: nvidia
+    model: qwen/qwen2.5-7b-instruct
+    api_key_env: NVIDIA_API_KEY

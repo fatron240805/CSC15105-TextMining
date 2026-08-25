@@ -1,0 +1,16 @@
+# Local development and CPU smoke tests (Python 3.11).
+# GPU-heavy embedding/alignment jobs are executed by the Kaggle kernels.
+numpy==2.4.6
+pandas==3.0.5
+scikit-learn==1.9.0
+spacy==3.8.15
+sentence-transformers==5.7.0
+transformers==5.15.0
+torch==2.13.0
+PyYAML==6.0.3
+google-genai==2.17.0
+openai==2.23.0
+kaggle==2.2.4
+
+# Install the English sentence-boundary model after the packages above:
+#   python -m spacy download en_core_web_sm

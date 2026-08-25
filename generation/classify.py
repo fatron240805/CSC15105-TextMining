@@ -1,8 +1,14 @@
 #!/usr/bin/env python3
-"""Vai trò #1 — Giải thích + phân loại kỹ thuật đạo văn (reverse RAG).
+"""Vai trò #1 — phân loại kỹ thuật đạo văn (reverse RAG). KHÔNG chồng lấn alignment:
+alignment chỉ quyết định CÓ đạo văn + Ở ĐÂU (offset/length); classify chỉ diễn giải
+BẰNG CÁCH NÀO cho một span alignment đã chốt xong — không tự quyết định lại span nào
+được tính. Lưu ý: PAN không có ground-truth `technique` (chỉ có `obfuscation`
+simple/medium/hard — xem IMPLEMENTATION_PLAN.md mục A2-4/A2-5), nên nhãn ở đây chỉ
+mang tính diễn giải/tham khảo, KHÔNG dùng để gate điểm số.
 
-Cho cặp (đoạn nghi vấn, đoạn nguồn), LLM chọn MỘT kỹ thuật đạo văn + giải thích vì sao.
-Biến detector thành hệ CÓ THỂ DIỄN GIẢI thay vì chỉ tô cam.
+Sibling rẻ hơn của generation.explain (cùng 1 lần gọi LLM cho technique+explanation,
+không kèm severity/suggested_rewrite) — dùng khi chỉ cần phân loại nhanh, không cần
+báo cáo đầy đủ.
 
   from generation.classify import classify_passage
   classify_passage(susp, src) -> {"technique","technique_vi","explanation","confidence"}
@@ -35,14 +41,21 @@ _SYSTEM = (
 )
 
 
+def normalize_technique(tech: str) -> str:
+    """Chuẩn hoá key kỹ thuật nếu model trả lệch (khoảng trắng, hoa/thường, key lạ).
+    Dùng chung bởi classify.py và explain.py để tránh 2 bản sao logic lệch nhau."""
+    tech = (tech or "").strip()
+    if tech in TECHNIQUES:
+        return tech
+    tech = tech.lower().replace(" ", "_")
+    return tech if tech in TECHNIQUES else "idea_plagiarism"
+
+
 def classify_passage(susp: str, src: str, *, model: str = None) -> dict:
     prompt = (f"SOURCE passage:\n\"\"\"\n{src.strip()}\n\"\"\"\n\n"
               f"SUSPICIOUS passage:\n\"\"\"\n{susp.strip()}\n\"\"\"\n")
     d = generate_json(prompt, system=_SYSTEM, model=model, temperature=0.2)
-    tech = str(d.get("technique", "")).strip()
-    if tech not in TECHNIQUES:                 # chuẩn hoá nếu model trả lệch
-        tech = tech.lower().replace(" ", "_")
-        tech = tech if tech in TECHNIQUES else "idea_plagiarism"
+    tech = normalize_technique(str(d.get("technique", "")))
     return {"technique": tech, "technique_vi": TECHNIQUES[tech],
             "explanation": str(d.get("explanation", "")).strip(),
             "confidence": d.get("confidence")}

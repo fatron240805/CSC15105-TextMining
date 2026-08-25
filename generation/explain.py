@@ -9,13 +9,19 @@ truy hồi — nêu kỹ thuật đạo, giải thích, mức độ, và đề x
 dựng: template cố định + đoạn nguồn truy hồi (augmented) + span. Người dùng KHÔNG
 tự viết prompt.
 
+Không chồng lấn alignment: nhận span alignment ĐÃ CHỐT làm input, không tự quyết
+định lại span nào tính điểm. Không chồng lấn classify.py: đây là bản ĐẦY ĐỦ (1 lần
+gọi LLM lấy cả technique+explanation+severity+suggested_rewrite) — dùng khi cần báo
+cáo trọn vẹn; classify.py là bản RẺ HƠN cùng vai trò #1 khi chỉ cần technique.
+Dùng chung normalize_technique() từ classify.py để tránh 2 bản logic lệch nhau.
+
   from generation.explain import explain_passage
   explain_passage(susp, src) -> {"technique","technique_vi","explanation",
                                  "severity","suggested_rewrite","confidence"}
 """
 from __future__ import annotations
 from generation._gemini import generate_json
-from generation.classify import TECHNIQUES
+from generation.classify import TECHNIQUES, normalize_technique
 
 _SYSTEM = (
     "You are a plagiarism analyst producing a grounded explanation report. "
@@ -42,10 +48,7 @@ def explain_passage(susp: str, src: str, *, model: str = None) -> dict:
               f"SUSPICIOUS passage:\n\"\"\"\n{susp.strip()}\n\"\"\"\n")
     d = generate_json(prompt, system=_SYSTEM, model=model, temperature=0.3)
 
-    tech = str(d.get("technique", "")).strip()
-    if tech not in TECHNIQUES:                       # chuẩn hoá nếu model trả lệch
-        tech = tech.lower().replace(" ", "_")
-        tech = tech if tech in TECHNIQUES else "idea_plagiarism"
+    tech = normalize_technique(str(d.get("technique", "")))
 
     sev = str(d.get("severity", "")).strip().lower()
     if sev not in _SEV:

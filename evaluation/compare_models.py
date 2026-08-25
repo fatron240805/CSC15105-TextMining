@@ -15,7 +15,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 os.environ.setdefault("LLM_PROVIDER", "fpt")
 from scripts.alignment.align_tfisf import align_pair
 from evaluation.plagdet import Span, plagdet_score
-from generation.verify import verify_pair
+from generation.verify import verify_pair, in_edge_band
 
 VAL = r"C:/github/PAN2025/pan25-generated-plagiarism-detection-validation/02_validation/02_validation"
 OUTDIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "generation")
@@ -31,30 +31,37 @@ def overlaps(o, l, golds):
 
 
 def build_spans(n):
+    """Quét đủ `n` span GATED (case biên quanh th3 — nơi alignment không tự tin, đáng
+    đưa verifier phân xử) để so sánh model; nhưng vẫn giữ lại TOÀN BỘ span quét được
+    (kể cả span alignment tự tin, auto-keep) trong `all_spans` để headline PlagDet
+    trước/sau phản ánh đúng pipeline thật — không chỉ mỗi phần biên."""
     gold_by, src_of = {}, {}
     for r in csv.DictReader(open("outputs/validation_spans.csv", encoding="utf-8", newline="")):
         if r["feature"] == "plagiarism" and r["source_reference"]:
             gold_by.setdefault(r["suspicious_reference"], []).append((int(r["this_offset"]), int(r["this_length"])))
             src_of.setdefault(r["suspicious_reference"], r["source_reference"])
-    spans, gold_spans = [], []
+    all_spans, gold_spans = [], []
+    n_gated = 0
     for su, golds in gold_by.items():
-        if len(spans) >= n:
+        if n_gated >= n:
             break
         sp, rp = os.path.join(VAL, "susp", su), os.path.join(VAL, "src", src_of[su])
         if not (os.path.exists(sp) and os.path.exists(rp)):
             continue
         st, rt = rd(sp), rd(rp)
-        pred = align_pair(st, rt, TH, TH, TH3, 4)
+        pred = align_pair(st, rt, TH, TH, TH3, 4, return_sim=True)
         if not pred:
             continue
         for go, gl in golds:
             gold_spans.append(Span(su, go, gl))
-        for s, l, ss, sl in pred:
-            if len(spans) >= n:
+        for s, l, ss, sl, sim in pred:
+            if n_gated >= n:
                 break
-            spans.append({"doc": su, "s": s, "l": l, "susp": st[s:s + l], "src": rt[ss:ss + sl],
-                          "tp": overlaps(s, l, golds)})
-    return spans, gold_spans
+            gated = in_edge_band(sim, TH3)
+            n_gated += gated
+            all_spans.append({"doc": su, "s": s, "l": l, "susp": st[s:s + l], "src": rt[ss:ss + sl],
+                              "tp": overlaps(s, l, golds), "sim": sim, "gated": gated})
+    return all_spans, gold_spans
 
 
 def main():
@@ -65,16 +72,20 @@ def main():
     args = ap.parse_args()
     sys.stdout.reconfigure(encoding="utf-8")
 
-    print(f"Dựng mẫu span (n={args.n})...", flush=True)
-    SPANS, gold_spans = build_spans(args.n)
-    n_tp = sum(x["tp"] for x in SPANS); n_fp = len(SPANS) - n_tp
-    pred_before = [Span(x["doc"], x["s"], x["l"]) for x in SPANS]
+    print(f"Dựng mẫu span (n={args.n} gated)...", flush=True)
+    ALL_SPANS, gold_spans = build_spans(args.n)
+    GATED = [x for x in ALL_SPANS if x["gated"]]
+    UNGATED = [x for x in ALL_SPANS if not x["gated"]]
+    n_tp = sum(x["tp"] for x in GATED); n_fp = len(GATED) - n_tp
+    pred_before = [Span(x["doc"], x["s"], x["l"]) for x in ALL_SPANS]
     pdb = plagdet_score(gold_spans, pred_before)
-    print(f"{len(SPANS)} span ({n_tp} TP, {n_fp} FP) · PlagDet nền {pdb.plagdet:.3f} "
+    print(f"{len(ALL_SPANS)} span quét ({len(GATED)} gated: {n_tp} TP/{n_fp} FP · "
+          f"{len(UNGATED)} alignment tự quyết) · PlagDet nền {pdb.plagdet:.3f} "
           f"(P={pdb.precision:.3f} R={pdb.recall:.3f})", flush=True)
 
     gate = threading.Semaphore(args.max_concurrent)     # trần call đồng thời toàn cục
     done = {}
+    ungated_after = [Span(x["doc"], x["s"], x["l"]) for x in UNGATED]   # auto-keep, không tốn API
 
     def verify_one(model, x):
         with gate:
@@ -88,13 +99,13 @@ def main():
     def run_model(model):
         t0 = time.time()
         with ThreadPoolExecutor(max_workers=args.inner) as ex:
-            out = list(ex.map(lambda x: verify_one(model, x), SPANS))
+            out = list(ex.map(lambda x: verify_one(model, x), GATED)) if GATED else []
         keeps = [o[0] for o in out]; confs = [o[1] for o in out if isinstance(o[1], (int, float))]
         lats = [o[2] for o in out]; fails = sum(o[3] for o in out)
-        keep_tp = sum(1 for x, k in zip(SPANS, keeps) if x["tp"] and k)
-        keep_fp = sum(1 for x, k in zip(SPANS, keeps) if not x["tp"] and k)
-        after = [Span(x["doc"], x["s"], x["l"]) for x, k in zip(SPANS, keeps) if k]
-        a = plagdet_score(gold_spans, after)
+        keep_tp = sum(1 for x, k in zip(GATED, keeps) if x["tp"] and k)
+        keep_fp = sum(1 for x, k in zip(GATED, keeps) if not x["tp"] and k)
+        gated_after = [Span(x["doc"], x["s"], x["l"]) for x, k in zip(GATED, keeps) if k]
+        a = plagdet_score(gold_spans, ungated_after + gated_after)
         rec = {"model": model,
                "plagdet_before": round(pdb.plagdet, 3), "plagdet_after": round(a.plagdet, 3),
                "delta": round(a.plagdet - pdb.plagdet, 3),
@@ -102,7 +113,7 @@ def main():
                "tp_retention": round(keep_tp / n_tp, 3) if n_tp else None,
                "prec_after": round(a.precision, 3),
                "avg_conf": round(statistics.mean(confs), 2) if confs else None,
-               "avg_lat_s": round(statistics.mean(lats), 1), "errors": fails}
+               "avg_lat_s": round(statistics.mean(lats), 1) if lats else None, "errors": fails}
         done[model] = rec
         print(f"  ✓ {model:24} PlagDet {pdb.plagdet:.3f}->{a.plagdet:.3f} (Δ{rec['delta']:+.3f}) "
               f"fp_red {rec['fp_reduction']} tp_ret {rec['tp_retention']} "
@@ -114,14 +125,16 @@ def main():
         res = list(ex.map(run_model, MODELS))
     res.sort(key=lambda r: -r["plagdet_after"])
 
-    summary = {"n_spans": len(SPANS), "n_TP": n_tp, "n_FP": n_fp,
+    summary = {"n_spans": len(ALL_SPANS), "n_gated": len(GATED), "n_TP": n_tp, "n_FP": n_fp,
                "plagdet_before": round(pdb.plagdet, 3), "results": res,
-               "runtime_sec": round(time.time() - t0, 1), "timestamp": datetime.now().isoformat(timespec="seconds")}
+               "runtime_sec": round(time.time() - t0, 1), "timestamp": datetime.now().isoformat(timespec="seconds"),
+               "note": "So sánh model chỉ chạy trên span GATED (case biên quanh th3); "
+                       "PlagDet before/after tính trên TOÀN BỘ span quét được (gated+alignment-tự-quyết)."}
     os.makedirs(OUTDIR, exist_ok=True)
     out = os.path.join(OUTDIR, f"model_compare_{datetime.now().strftime('%Y%m%d-%H%M%S')}.json")
     json.dump(summary, open(out, "w", encoding="utf-8"), ensure_ascii=False, indent=2)
 
-    print(f"\n===== SO SÁNH {len(MODELS)} MODEL · {len(SPANS)} span ({n_tp} TP/{n_fp} FP) · "
+    print(f"\n===== SO SÁNH {len(MODELS)} MODEL · {len(GATED)} span gated ({n_tp} TP/{n_fp} FP) · "
           f"nền {pdb.plagdet:.3f} · {summary['runtime_sec']:.0f}s =====")
     print(f"{'model':24} {'PlagDet↑':>8} {'Δ':>7} {'fp_red':>7} {'tp_ret':>7} {'prec':>6} {'lat':>6}")
     for r in res:

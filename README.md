@@ -2,9 +2,11 @@
 
 Hệ RAG phát hiện đạo văn trên corpus khoa học arXiv của PAN 2025:
 
-**Retrieval (TF-IDF) → Alignment (tf-isf seed-and-extend) → Scoring (PlagDet) → Verifier LLM → Generation grounded (luận giải).**
+**Retrieval (TF-IDF) → Alignment (tf-isf seed-and-extend, sở hữu quyết định span) → Scoring (PlagDet) → Verifier LLM (chỉ case biên quanh th3) → Generation grounded (luận giải).**
 
-Kết quả chính (val): Retrieval R@1 **0.975** · Detection PlagDet **0.713** · Verifier GLM-5.2 **+0.044** PlagDet.
+Kết quả chính (val): Retrieval R@1 **0.975** · Detection PlagDet **0.713** · Verifier GLM-5.2 **+0.044** PlagDet
+(số đo trước khi rà lại ranh giới vai trò 2026-08-24 — xem `evaluation/tune_tfisf_threshold.py`
+để so với PlagDet đạt được chỉ bằng tune ngưỡng, không dùng LLM).
 Báo cáo kiến trúc: `evaluation/architecture_report.html` · slide: `architecture_slides.pdf`.
 
 ---
@@ -105,8 +107,9 @@ muốn **chạy eval mới** thì cần corpus PAN val + sửa `VAL` (mục 1).
 | Tầng | Lệnh | Ghi ra |
 |---|---|---|
 | **Detection (PlagDet)** | `python orchestration/run_pipeline.py --split val --subset 1000 --topk 1` | `outputs/pipeline_eval.csv`, `evaluation/results/*.json` |
-| **Verifier #3** (khử báo giả, nhãn gold khách quan) | `python evaluation/eval_verifier.py --max-spans 20 --sleep 5` | `evaluation/generation/verifier_eval_*.json` |
-| **So sánh 6 LLM verifier** (song song, quy mô lớn) | `python evaluation/compare_models.py --n 1000 --inner 2 --max-concurrent 12` | `evaluation/generation/model_compare_*.json` |
+| **Sweep ngưỡng tf-isf** (không LLM — trần threshold-tuning-đơn-thuần, để so với verifier) | `python evaluation/tune_tfisf_threshold.py --max-docs 1000` | `evaluation/generation/tfisf_threshold_sweep_*.json` |
+| **Verifier #3** (case biên quanh th3 — xem `in_edge_band` trong `generation/verify.py`) | `python evaluation/eval_verifier.py --max-spans 20 --sleep 5` | `evaluation/generation/verifier_eval_*.json` |
+| **So sánh 6 LLM verifier** (chỉ trên case biên, song song, quy mô lớn) | `python evaluation/compare_models.py --n 1000 --inner 2 --max-concurrent 12` | `evaluation/generation/model_compare_*.json` |
 | **Generation** (viết lại khử đạo — detector chạy lại) | `python evaluation/eval_generation.py --max-spans 15 --judge` | `evaluation/generation/gen_eval_*.json` |
 | **Classify #1** (kỹ thuật, bộ synthetic — chỉ tham khảo) | `python evaluation/eval_classify.py --n 12 --sleep 5` | `evaluation/generation/*.json` |
 
@@ -128,9 +131,14 @@ python evaluation/build_system_report.py     # -> evaluation/system_report.html 
 
 ```
 orchestration/run_pipeline.py     # inference + eval end-to-end
-scripts/alignment/align_tfisf.py  # aligner seed-and-extend (lõi)
+scripts/alignment/align_tfisf.py  # aligner seed-and-extend (lõi, sở hữu quyết định span)
 scripts/parse_labels.py           # truth XML -> outputs/*_labels.jsonl + *_spans.csv
-generation/{verify,classify,rewrite,explain}.py  # vai trò LLM (đa provider)
+generation/{verify,classify,rewrite,explain}.py  # vai trò LLM (đa provider) — diễn giải/
+                                   # phân xử case biên, KHÔNG tự quyết định lại span
+generation/providers.py           # provider adapter cho baseline rewrite đa-model (Gemini/NVIDIA NIM)
+evaluation/generation_manifest.py # input contract cho baseline rewrite đa-model — chỉ từ alignment
+evaluation/generation_store.py    # JSONL store resumable (cache theo hash) cho baseline đó
+generation/experiments/*.yaml     # cấu hình 1 lần chạy baseline rewrite đa-model
 evaluation/*.py                   # eval từng tầng + dựng báo cáo HTML
 evaluation/{leaderboard,system_report,architecture_report}.html
 demo/app.py                       # demo web (stdlib http.server)
@@ -138,3 +146,10 @@ outputs/                          # data đã xử lý: labels/spans, embeddings
 ```
 
 Tài liệu thêm: `plagiarism_detection_project_design.md`, `IMPLEMENTATION_PLAN.md`, `KAGGLE_RUNBOOK.md`.
+
+**Baseline rewrite đa-model (đang chuẩn bị, chạy ở bước sau)**: `evaluation/generation_manifest.py`
+dựng manifest JSONL bất biến (hash nội dung, dedupe non-overlap) trực tiếp từ `align_pair` —
+cố tình KHÔNG đi qua `verify.py`/`classify.py` (xem ranh giới vai trò ở trên). Manifest đã được
+smoke-test bằng fixture tổng hợp (dedupe/hash/round-trip JSONL đúng); runner thật sự gọi
+`generation/providers.py` (Gemini/NVIDIA NIM) theo `generation/experiments/nvidia_free.yaml`
+chưa viết — đó là bước tiếp theo.
