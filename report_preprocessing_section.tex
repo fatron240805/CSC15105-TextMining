@@ -1,0 +1,55 @@
+% Section: Tiền xử lý văn bản (Text Preprocessing) — nhánh lexical (TF-IDF / tf-isf)
+% Không cần gói ngoài (chỉ dùng itemize + toán cơ bản).
+% Dùng: \input{report_preprocessing_section}
+
+\section{Tiền xử lý văn bản (Text Preprocessing)}
+
+Tầng đối chiếu (alignment) làm việc trên đơn vị \emph{câu}: mỗi câu của tài liệu nghi vấn được
+so khớp với các câu của tài liệu nguồn. Do đó, sau bước truy hồi, văn bản cần được tách thành
+câu trước khi tính độ tương đồng tf-isf. Bước tiền xử lý này được cài đặt trong
+\texttt{scripts/alignment/align\_core.py}, với ràng buộc thiết kế cốt lõi là \emph{bảo toàn chính
+xác vị trí ký tự}.
+
+\subsection{Ràng buộc: chấm điểm ở mức ký tự}
+
+Thước đo PlagDet đánh giá ở mức ký tự: một đoạn đạo văn được biểu diễn bằng khoảng
+$[\,\mathrm{offset},\ \mathrm{offset}+\mathrm{length}\,)$ trong tài liệu, và điểm số phụ thuộc vào phần
+giao ký tự giữa đoạn dự đoán và nhãn gold. Vì vậy, một sai lệch nhỏ ở offset câu sẽ làm lệch điểm
+mà không phát sinh lỗi tường minh. Ràng buộc này loại trừ các bộ tách câu ``làm sạch'' văn bản
+(chuẩn hoá khoảng trắng, bỏ ký tự, cắt đoạn), vì mọi thao tác như vậy đều phá vỡ ánh xạ offset
+giữa câu và văn bản gốc.
+
+\subsection{Bộ tách câu lát kín (tiling)}
+
+Để thoả ràng buộc trên, bộ tách câu được thiết kế sao cho các câu \emph{lát kín} (tiling) toàn bộ
+văn bản. Thuật toán dựa trên luật: quét văn bản, ngắt câu tại chuỗi ký tự kết thúc câu
+\texttt{.!?} (một chuỗi dấu liên tiếp được gộp thành một ranh giới duy nhất), sau đó \emph{nuốt}
+toàn bộ khoảng trắng theo sau vào câu vừa cắt. Phần văn bản còn lại sau dấu kết câu cuối cùng
+(nếu có) tạo thành câu cuối.
+
+Kết quả là một dãy câu, mỗi câu chỉ lưu cặp offset \texttt{(start, end)}, thoả các bất biến sau:
+
+\begin{itemize}
+  \item Câu đầu bắt đầu tại offset $0$; câu cuối kết thúc tại độ dài văn bản.
+  \item Hai câu kề nhau khít nhau: câu thứ $i$ kết thúc đúng tại vị trí câu thứ $i{+}1$ bắt đầu
+  --- không có khoảng hở, không chồng lấn.
+  \item Khoảng trắng (kể cả xuống dòng) luôn thuộc về đúng một câu, nên việc ghép nối tất cả các
+  câu tái tạo lại văn bản gốc \emph{từng ký tự}.
+\end{itemize}
+
+Bất biến này được kiểm chứng tự động bằng hàm \texttt{verify\_tiling}, khẳng định (assertion) rằng
+dãy câu không hở, không chồng, và chuỗi ghép lại trùng khớp văn bản gốc. Nhờ đó, span đạo văn do
+aligner sinh ra --- vốn được tạo bằng cách gộp các câu liên tiếp --- luôn có offset ký tự chính
+xác, đảm bảo PlagDet không bị lệch điểm do sai số tách câu.
+
+\subsection{Về việc không loại reference marker}
+
+Ở nhánh lexical này, văn bản \emph{không} bị khoanh vùng nội dung (giữ nguyên phần đầu tài liệu và
+danh mục tài liệu tham khảo) và \emph{không} loại các dấu trích dẫn (reference marker) như
+\texttt{[12]} hay \texttt{(3-5)}. Đây là lựa chọn có chủ đích: việc cắt bỏ hoặc bỏ qua các đoạn văn
+bản sẽ tạo ra khoảng hở trong dãy offset và phá vỡ tính lát kín, mâu thuẫn với yêu cầu bảo toàn ký
+tự. Trên thực tế, các dấu trích dẫn rất ngắn và hiếm khi đạt ngưỡng để hình thành một span đạo văn
+(aligner tf-isf yêu cầu độ tương đồng đủ cao trên một cụm câu liền mạch và độ dài tối thiểu), nên
+việc giữ lại chúng gần như không ảnh hưởng đến độ chính xác, trong khi loại bỏ có thể gây rủi ro
+lệch offset. Bước lọc reference marker chỉ được áp dụng ở biến thể aligner ngữ nghĩa, nơi mỗi câu
+được nhúng độc lập và không có ràng buộc lát kín.

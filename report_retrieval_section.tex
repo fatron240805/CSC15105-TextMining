@@ -1,0 +1,142 @@
+% Section: Truy hồi nguồn (Source Retrieval)
+% Yêu cầu: \usepackage{booktabs}
+% Dùng: \input{report_retrieval_section}
+
+\section{Truy hồi nguồn (Source Retrieval)}
+
+\subsection{Bài toán và phương pháp}
+
+Với mỗi tài liệu nghi vấn, việc đối chiếu chi tiết trực tiếp với toàn bộ $7\,949$
+tài liệu nguồn là bất khả thi về chi phí tính toán. Tầng truy hồi có nhiệm vụ thu hẹp
+kho nguồn về một tập nhỏ các ứng viên khả nghi: đầu vào là tài liệu nghi vấn cùng chỉ mục
+của kho, đầu ra là danh sách $k$ nguồn được xếp hạng theo mức tương đồng.
+
+Phương pháp được sử dụng là TF-IDF kết hợp độ đo cosine. Mỗi tài liệu được biểu diễn bằng
+một vector TF-IDF trên $20\,000$ ký tự đầu (cắt theo ký tự, mỗi tài liệu một vector), với
+cấu hình \texttt{max\_features} $=100\,000$, \texttt{sublinear\_tf}, và loại bỏ stop-word
+tiếng Anh. Vector của tài liệu nghi vấn được so cosine với toàn bộ ma trận nguồn để lấy
+$k$ tài liệu có điểm cao nhất.
+
+\subsection{Ví dụ minh hoạ biểu diễn TF-IDF}
+
+Để làm rõ cách TF-IDF đánh trọng số cho từ, xét một kho đồ chơi gồm bốn văn bản ngắn:
+
+\begin{itemize}
+  \item[$d_1$] (truy vấn): \emph{deep neural networks classify images with high accuracy}
+  \item[$d_2$:] \emph{neural networks are trained on large datasets}
+  \item[$d_3$:] \emph{the model reduces the computational cost of training}
+  \item[$d_4$:] \emph{convolutional networks improve image classification accuracy}
+\end{itemize}
+
+Sau khi loại stop-word tiếng Anh, mỗi từ được gán trọng số theo công thức của thư viện
+\texttt{scikit-learn}:
+\[
+\mathrm{idf}(t) = \ln\frac{1+N}{1+\mathrm{df}(t)} + 1,
+\qquad
+w(t,d) = \big(1 + \ln \mathrm{tf}(t,d)\big)\cdot \mathrm{idf}(t),
+\]
+trong đó $N=4$ là số văn bản, $\mathrm{df}(t)$ là số văn bản chứa từ $t$, và $\mathrm{tf}(t,d)$ là
+tần suất từ $t$ trong văn bản $d$; vector cuối được chuẩn hoá $L_2$. Bảng~\ref{tab:tfidf-demo}
+liệt kê trọng số TF-IDF của câu truy vấn $d_1$.
+
+\begin{table}[htbp]
+\centering
+\renewcommand{\arraystretch}{1.2}
+\begin{tabular}{lccc}
+\toprule
+\textbf{Từ} & \textbf{df} & \textbf{idf} & \textbf{TF-IDF ($d_1$)} \\
+\midrule
+\emph{classify} & 1 & 1.916 & \textbf{0.421} \\
+\emph{deep}     & 1 & 1.916 & \textbf{0.421} \\
+\emph{images}   & 1 & 1.916 & \textbf{0.421} \\
+\emph{high}     & 1 & 1.916 & \textbf{0.421} \\
+\emph{accuracy} & 2 & 1.511 & 0.332 \\
+\emph{neural}   & 2 & 1.511 & 0.332 \\
+\emph{networks} & 3 & 1.223 & 0.269 \\
+\bottomrule
+\end{tabular}
+\caption{Trọng số TF-IDF của câu truy vấn $d_1$ trên kho đồ chơi bốn văn bản ($N=4$),
+sắp theo trọng số giảm dần.}
+\label{tab:tfidf-demo}
+\end{table}
+
+Vì mỗi từ chỉ xuất hiện một lần trong $d_1$, thành phần $\mathrm{tf}$ là đồng đều, nên chênh
+lệch trọng số hoàn toàn do IDF quyết định. Các từ đặc trưng chỉ có mặt ở một văn bản
+(\emph{classify}, \emph{deep}, \emph{images}, \emph{high}; $\mathrm{df}=1$) nhận trọng số cao
+nhất ($0.421$), trong khi từ phổ biến \emph{networks} ($\mathrm{df}=3$) chỉ còn $0.269$. Nhờ
+cơ chế này, độ đo cosine giữa hai tài liệu bị chi phối bởi các \emph{thuật ngữ đặc trưng dùng
+chung}; đó chính là tín hiệu giúp tầng truy hồi xác định đúng nguồn.
+
+\subsection{Lựa chọn TF-IDF và kết quả so sánh}
+
+TF-IDF được lựa chọn sau khi so sánh trực tiếp với phương pháp biểu diễn ngữ nghĩa (neural
+embedding) trên tập validation gồm $5\,522$ tài liệu nghi vấn. Kết quả được trình bày trong
+Bảng~\ref{tab:retrieval-recall}: TF-IDF vượt trội ở mọi mức Recall@k cũng như MRR.
+
+\begin{table}[htbp]
+\centering
+\renewcommand{\arraystretch}{1.2}
+\begin{tabular}{lcccc}
+\toprule
+\textbf{Phương pháp} & \textbf{R@1} & \textbf{R@5} & \textbf{R@10} & \textbf{MRR} \\
+\midrule
+\textbf{TF-IDF (từ vựng)}       & \textbf{0.975} & \textbf{0.994} & \textbf{0.995} & \textbf{0.985} \\
+Neural (bge-small)              & 0.908          & 0.965          & 0.975          & 0.934          \\
+\bottomrule
+\end{tabular}
+\caption{Recall@k và MRR trên tập validation ($5\,522$ tài liệu nghi vấn).}
+\label{tab:retrieval-recall}
+\end{table}
+
+Sự vượt trội của TF-IDF xuất phát từ hai yếu tố. Thứ nhất, đạo văn trong bộ PAN có độ trùng
+lặp từ vựng cao, và các tài liệu khoa học chia sẻ nhiều thuật ngữ chuyên ngành, tên riêng,
+ký hiệu và con số; đây là các tín hiệu mà mô hình túi từ (bag-of-words) nắm bắt trực tiếp.
+Thứ hai, biểu diễn ngữ nghĩa \texttt{bge-small} bị chi phối bởi chủ đề: các tài liệu cùng
+lĩnh vực nằm gần nhau trong không gian embedding, làm mờ ranh giới giữa nguồn thật và các
+tài liệu chỉ trùng chủ đề, dẫn đến hạng của nguồn đúng bị hạ thấp.
+
+\subsection{Giới hạn của biểu diễn từ vựng}
+
+Do là mô hình túi từ, TF-IDF chỉ nắm bắt phần từ vựng bề mặt được dùng chung giữa hai văn
+bản. Cần phân biệt hai dạng che giấu (obfuscation) với ảnh hưởng khác nhau:
+
+\begin{itemize}
+  \item \textbf{Đảo trật tự câu hoặc mệnh đề} không ảnh hưởng đến TF-IDF, vì biểu diễn túi từ
+  bất biến với thứ tự từ: toàn bộ từ được giữ nguyên nên độ trùng từ vựng không đổi (ví dụ~4
+  trong Bảng~\ref{tab:paraphrase}, Jaccard $=1.00$).
+  \item \textbf{Thay từ đồng nghĩa, dịch đi--dịch lại (back-translation) và viết lại ý} là giới
+  hạn thực sự: khi các từ dùng chung bị thay bằng từ khác về mặt hình thức, độ trùng từ vựng
+  giảm dần về $0$ và tín hiệu lexical biến mất. Ở các đoạn bị che giấu theo cách này, TF-IDF
+  không còn khả năng phát hiện.
+\end{itemize}
+
+Bảng~\ref{tab:paraphrase} minh hoạ mức suy giảm độ trùng từ vựng qua các kỹ thuật đạo văn,
+đo bằng hai chỉ số: Jaccard trên tập từ nội dung, và cosine giữa hai vector TF-IDF (cùng cấu
+hình với tầng truy hồi). Khi từ vựng dùng chung bị thay thế dần (ví dụ~1 đến ví dụ~8), cả hai
+chỉ số cùng giảm --- Jaccard từ $0.83$ về $0.00$ và cosine TF-IDF từ $0.88$ về $0.00$ ---
+và khả năng phát hiện của TF-IDF suy giảm tương ứng.
+
+\begin{table}[htbp]
+\centering
+\scriptsize
+\renewcommand{\arraystretch}{1.3}
+\begin{tabular}{@{}p{0.35cm}p{1.9cm}p{3.9cm}p{3.9cm}p{0.8cm}p{0.9cm}p{1.15cm}@{}}
+\toprule
+\textbf{\#} & \textbf{Kỹ thuật} & \textbf{Câu nguồn} & \textbf{Câu đạo văn} & \textbf{Jaccard} & \textbf{cos TF-IDF} & \textbf{Phát hiện} \\
+\midrule
+1 & Sao chép nguyên văn & \emph{\dots velocity fluctuations dominate the small-scale structure observed in spectral-line data cubes.} & \emph{\dots velocity fluctuations dominate the small-scale structure seen in spectral-line data cubes.} & 0.83 & 0.88 & Có (mạnh) \\
+2 & Thay từ đồng nghĩa (nhẹ) & \emph{Deep neural networks achieve state-of-the-art accuracy on large-scale image classification benchmarks.} & \emph{Deep neural networks attain leading performance on large-scale image recognition benchmarks.} & 0.44 & 0.54 & Có \\
+3 & Thay từ đồng nghĩa (mạnh) & \emph{The proposed algorithm significantly reduces the computational cost of training large language models.} & \emph{Our method markedly lowers the training expense of building sizeable language models.} & 0.19 & 0.21 & Yếu \\
+4 & Đảo trật tự câu & \emph{Because the dataset is imbalanced, we apply oversampling before training the classifier.} & \emph{We apply oversampling before training the classifier, because the dataset is imbalanced.} & 1.00 & 1.00 & Có (không phụ thuộc thứ tự) \\
+5 & Chắp vá (mosaic) & \emph{Transformer architectures rely on self-attention to model long-range dependencies in sequences.} & \emph{To capture long-range dependencies, sequence models built on transformers use the self-attention mechanism.} & 0.28 & 0.40 & Yếu \\
+6 & Dịch đi--dịch lại & \emph{The experimental results confirm that our approach outperforms existing baselines by a wide margin.} & \emph{Findings from the experiments verify a substantial performance gap in favor of the presented technique over prior methods.} & 0.00 & 0.00 & Không \\
+7 & Đạo ý & \emph{Increasing the number of training epochs improves accuracy but eventually leads to overfitting.} & \emph{Prolonged optimization raises predictive quality up to a point, after which the model starts memorizing the data.} & 0.00 & 0.00 & Không \\
+8 & Đạo ý (cực) & \emph{Regularization techniques such as dropout prevent co-adaptation of neurons and improve generalization.} & \emph{By randomly disabling units during learning, one discourages units from relying on each other and yields models that transfer better to unseen inputs.} & 0.00 & 0.00 & Không \\
+\bottomrule
+\end{tabular}
+\caption{Suy giảm độ trùng từ vựng qua các kỹ thuật đạo văn, minh hoạ ở mức câu. Jaccard được
+tính trên tập từ nội dung (chữ thường, loại stop-word và từ $\le 2$ ký tự); \emph{cos TF-IDF}
+là cosine giữa hai vector TF-IDF theo đúng cấu hình tầng truy hồi (\texttt{sublinear\_tf},
+loại stop-word tiếng Anh).}
+\label{tab:paraphrase}
+\end{table}
