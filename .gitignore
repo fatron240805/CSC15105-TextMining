@@ -50,3 +50,9 @@ api_key
 generation/__pycache__/
 
 evaluation/generation/
+
+# LaTeX báo cáo (giữ local / Overleaf, không đưa vào repo)
+main.tex
+architecture_slides.tex
+report_retrieval_section.tex
+report_preprocessing_section.tex
