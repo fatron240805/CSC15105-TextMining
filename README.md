@@ -50,18 +50,16 @@ python scripts/parse_labels.py \
   --out-csv   outputs/validation_spans.csv
 ```
 
-**Khoá LLM** (chỉ cần cho Verifier / Generation / Classify). Tạo `.env` ở gốc repo (đã gitignore):
+**Khoá LLM** (chỉ cần cho các nút LLM trong demo & script eval gọi LLM; phần phát hiện
+retrieval + alignment KHÔNG cần key). Sao chép file mẫu rồi điền key thật:
 
-```dotenv
-# Google Gemini
-GEMINI_API_KEY=...
-GEMINI_MODEL=gemini-flash-latest
-# FPT AI Marketplace (OpenAI-compatible) — dùng cho GLM-5.2 v.v.
-LLM_API_KEY=...
-LLM_API_BASE=https://mkp-api.fptcloud.com
-LLM_MODEL=GLM-5.2
+```bash
+cp .env.example .env      # rồi mở .env điền LLM_API_KEY (FPT) hoặc GEMINI_API_KEY
 ```
-Chuyển provider bằng env `LLM_PROVIDER=gemini` (mặc định) hoặc `fpt`.
+
+`.env` đã bị `.gitignore` (không lộ key). Xem `.env.example` để biết các biến:
+`LLM_PROVIDER` (`fpt` mặc định | `gemini`), `LLM_API_KEY`/`LLM_API_BASE`/`LLM_MODEL` (FPT, GLM-5.2),
+`GEMINI_API_KEY`/`GEMINI_MODEL` (tùy chọn).
 
 ---
 
@@ -85,15 +83,31 @@ Kết quả in ra màn hình + ghi `outputs/pipeline_eval.csv`, lưu vào kho `e
 và dựng lại `evaluation/leaderboard.html`.
 
 ### 2b. Demo web tương tác (dán/upload tài liệu → highlight + luận giải)
+
+**Chạy demo với FULL SOURCE — cho teammate (chỉ cần `git pull` + tải corpus từ Drive):**
+
+1. **Tải corpus nguồn val** (7 949 file `.txt`, 148 MB nén) — link nhóm:
+   `https://drive.google.com/open?id=1zoO9vq_L5eJHTRLx36brwl2T3Xz93Q3M`
+2. **Giải nén** → được thư mục `src/` (chứa `source-document*.txt`).
+3. **(Cho các nút LLM)** `cp .env.example .env` rồi điền `LLM_API_KEY` (FPT). *Phần phát hiện
+   đạo văn KHÔNG cần key — chỉ 4 nút LLM trong modal mới cần.*
+4. **Chạy** (trỏ `--sources` vào thư mục `src` vừa giải nén):
+
 ```bash
-python demo/app.py \
-  --sources "C:/github/PAN2025/pan25-generated-plagiarism-detection-validation/02_validation/02_validation/src" \
-  --port 8010 --provider fpt --llm-model GLM-5.2
+python demo/app.py --sources "ĐƯỜNG_DẪN/src" --port 8111 --provider fpt --llm-model GLM-5.2
 ```
-Mở `http://localhost:8010`. Nạp kho nguồn + TF-IDF một lần lúc khởi động; mỗi request chạy
-Retrieval → Alignment và trả span. Bấm một span để mở modal có 4 nút LLM: **Luận giải (RAG)**,
-Phân loại kỹ thuật, Xác minh, Viết lại (dùng model theo `--provider/--llm-model`).
-Mẫu test: `demo/test_samples.txt`. (Bỏ `--provider/--llm-model` để mặc định GLM-5.2 qua FPT.)
+
+Mở `http://localhost:8111`. Nạp kho nguồn + TF-IDF một lần lúc khởi động (~1–2 phút với full
+source); mỗi request chạy Retrieval → Alignment và trả span. Bấm một span để mở modal 4 nút LLM:
+**Luận giải (RAG)**, Phân loại kỹ thuật, Xác minh, Viết lại.
+
+- Mẫu test: `demo/test_samples.txt`.
+- Bỏ `--provider/--llm-model` để mặc định GLM-5.2 qua FPT.
+- Muốn chạy nhanh (nạp vài giây): trỏ `--sources` vào thư mục có ít nguồn hơn.
+- Chọn port khác nếu 8111 bận: `--port <số>`.
+
+> Ghi chú: gói corpus này (`pan25_val_src.zip`) nằm cùng Drive với gói data đã xử lý
+> (`pan25_processed_data.zip`, dùng cho eval — xem mục 1).
 
 ---
 
